@@ -21,6 +21,17 @@ export interface Landlord {
   rating: number;
   totalListings: number;
   responseTime: string;
+  joinedDate: string;
+}
+
+export interface ListingReview {
+  id: string;
+  authorName: string;
+  authorAvatar: string;
+  verifiedTenant: boolean;
+  rating: number;
+  comment: string;
+  date: string;
 }
 
 export interface ListingPost {
@@ -46,6 +57,9 @@ export interface ListingPost {
   distanceKm: number;
   lat: number;
   lng: number;
+  videoUrl?: string;
+  houseRules: string[];
+  reviews: ListingReview[];
 }
 
 export interface ReviewPost {
@@ -202,6 +216,7 @@ const landlords: Landlord[] = [
     rating: 4.8,
     totalListings: 12,
     responseTime: 'Usually responds within 1hr',
+    joinedDate: 'March 2021',
   },
   {
     id: 'l2',
@@ -211,6 +226,7 @@ const landlords: Landlord[] = [
     rating: 4.9,
     totalListings: 8,
     responseTime: 'Usually responds within 30min',
+    joinedDate: 'September 2022',
   },
   {
     id: 'l3',
@@ -220,6 +236,7 @@ const landlords: Landlord[] = [
     rating: 4.2,
     totalListings: 5,
     responseTime: 'Usually responds within 2hrs',
+    joinedDate: 'January 2023',
   },
   {
     id: 'l4',
@@ -229,6 +246,7 @@ const landlords: Landlord[] = [
     rating: 4.6,
     totalListings: 20,
     responseTime: 'Usually responds within 45min',
+    joinedDate: 'June 2020',
   },
   {
     id: 'l5',
@@ -238,6 +256,7 @@ const landlords: Landlord[] = [
     rating: 4.7,
     totalListings: 15,
     responseTime: 'Usually responds within 1hr',
+    joinedDate: 'November 2021',
   },
   {
     id: 'l6',
@@ -247,6 +266,7 @@ const landlords: Landlord[] = [
     rating: 3.9,
     totalListings: 3,
     responseTime: 'Usually responds within 3hrs',
+    joinedDate: 'May 2023',
   },
   {
     id: 'l7',
@@ -256,6 +276,7 @@ const landlords: Landlord[] = [
     rating: 4.5,
     totalListings: 9,
     responseTime: 'Usually responds within 1hr',
+    joinedDate: 'February 2022',
   },
 ];
 
@@ -328,6 +349,9 @@ function randomDate(daysBack: number): string {
 // ============================================
 // Generate Listing Posts
 // ============================================
+// ============================================
+// Generate Listing Posts
+// ============================================
 const listingDescriptions = [
   'Spacious and well-ventilated room in a serene environment, perfect for serious students. Very close to the main gate, easy access to campus.',
   'Newly renovated apartment with modern finishes. Constant water supply and 24/7 security. Prepaid meter available — no crazy light bills!',
@@ -341,6 +365,19 @@ const listingDescriptions = [
   'Comfortable studio apartment with kitchenette. Water runs 24/7, prepaid meter installed. 5 minutes walk from the campus main gate.',
 ];
 
+const mockHouseRules = [
+  ['No loud music after 10 PM', 'No painting of walls without permission', 'Maintain cleanliness in common areas', 'Guests must depart by 11 PM', 'No pets allowed'],
+  ['Prepaid token to be shared among flatmates', 'Gate is locked at 11:30 PM daily', 'Proper disposal of refuse is mandatory', 'No commercial activities in the premises'],
+  ['No subletting of rooms', 'Quiet hours from 9 PM to 6 AM', 'Keep keycards secure — replacement fee applies', 'Report maintenance issues immediately'],
+];
+
+const mockReviewsList: ListingReview[] = [
+  { id: 'r-1', authorName: 'Chioma N.', authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop', verifiedTenant: true, rating: 5, comment: 'Amazing place! The water is constant and generator schedule is strictly followed. Highly recommended.', date: '2026-05-15T10:30:00Z' },
+  { id: 'r-2', authorName: 'Babajide A.', authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop', verifiedTenant: true, rating: 4, comment: 'Very close to UNILAG gate. Clean flat and Mrs. Okonkwo responds to issues fast.', date: '2026-06-01T14:20:00Z' },
+  { id: 'r-3', authorName: 'Fatima Z.', authorAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop', verifiedTenant: false, rating: 3, comment: 'Lodge is decent but the security guard can be strict about guest hours. Still a okay place.', date: '2026-04-20T09:15:00Z' },
+  { id: 'r-4', authorName: 'Victor E.', authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop', verifiedTenant: true, rating: 5, comment: 'Perfect self-contain. Prepaid meter is in the room so i manage my consumption. Zero light issues!', date: '2026-07-10T18:45:00Z' },
+];
+
 function generateListings(): ListingPost[] {
   const listings: ListingPost[] = [];
   const prices = [80000, 120000, 150000, 180000, 200000, 250000, 300000, 350000, 400000, 450000, 500000, 600000, 700000, 150000, 100000, 250000, 180000, 220000, 280000, 320000, 380000, 160000, 200000, 270000, 190000, 420000, 550000, 130000, 170000, 240000, 350000, 280000];
@@ -352,6 +389,10 @@ function generateListings(): ListingPost[] {
     const images = roomImages[i % roomImages.length];
     const price = prices[i % prices.length];
     const area = uni.areas[i % uni.areas.length];
+
+    // Seeding: every 5th listing (index % 5 === 0) has 0 reviews to test empty review state
+    const reviews = i % 5 === 0 ? [] : pickRandom(mockReviewsList, 1 + (i % 3));
+    const rules = mockHouseRules[i % mockHouseRules.length];
 
     listings.push({
       id: `listing-${i + 1}`,
@@ -376,6 +417,9 @@ function generateListings(): ListingPost[] {
       distanceKm: parseFloat((Math.random() * 3 + 0.2).toFixed(1)),
       lat: uni.lat + (Math.random() - 0.5) * 0.04,
       lng: uni.lng + (Math.random() - 0.5) * 0.04,
+      videoUrl: i % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-kitchen-in-an-apartment-40099-large.mp4' : undefined,
+      houseRules: rules,
+      reviews: reviews,
     });
   }
   return listings;
