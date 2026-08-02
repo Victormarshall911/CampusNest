@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { formatNaira } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ export default function PriceFilter({ range, onChange }: PriceFilterProps) {
 
   const snapToStep = (val: number) => Math.round(val / STEP) * STEP;
 
-  const handlePointerDown = (handle: 'min' | 'max') => (e: React.PointerEvent) => {
+  const handlePointerDown = (handle: 'min' | 'max', e: React.PointerEvent) => {
     e.preventDefault();
     draggingRef.current = handle;
 
@@ -57,10 +57,12 @@ export default function PriceFilter({ range, onChange }: PriceFilterProps) {
     document.addEventListener('pointerup', onUp);
   };
 
-  // Sync from parent
-  useEffect(() => {
+  // Sync from parent prop changes during render (React-recommended pattern)
+  const [prevRange, setPrevRange] = useState(range);
+  if (prevRange[0] !== range[0] || prevRange[1] !== range[1]) {
+    setPrevRange(range);
     setLocalRange(range);
-  }, [range]);
+  }
 
   // Quick preset buttons
   const presets = [
@@ -100,7 +102,7 @@ export default function PriceFilter({ range, onChange }: PriceFilterProps) {
         <motion.div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border-2 border-cn-purple shadow-lg cursor-grab active:cursor-grabbing z-10"
           style={{ left: `${pctMin}%` }}
-          onPointerDown={handlePointerDown('min')}
+          onPointerDown={(e) => handlePointerDown('min', e)}
           whileHover={{ scale: 1.2 }}
           whileTap={{ scale: 1.1 }}
         >
@@ -111,7 +113,7 @@ export default function PriceFilter({ range, onChange }: PriceFilterProps) {
         <motion.div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border-2 border-cn-blue shadow-lg cursor-grab active:cursor-grabbing z-10"
           style={{ left: `${pctMax}%` }}
-          onPointerDown={handlePointerDown('max')}
+          onPointerDown={(e) => handlePointerDown('max', e)}
           whileHover={{ scale: 1.2 }}
           whileTap={{ scale: 1.1 }}
         >

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Share2, Bookmark, Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Share2, Bookmark, Volume2, VolumeX, Play } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -51,11 +51,10 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
     
     const values = snaps.map((_, idx) => {
       // Calculate scroll progress relative to this slide's target snap
-      // Normalizing snap offset so it translates in the opposite direction of swipe
       const targetIndex = idx;
       const progress = scrollProgress * (slidesCount - 1);
       const diff = progress - targetIndex;
-      return diff * -12; // Parallax translation percentage (e.g. -12% max)
+      return diff * -12; // Parallax translation percentage
     });
     setParallaxValues(values);
   }, [emblaApi]);
@@ -74,13 +73,13 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
 
   useEffect(() => {
     if (!emblaApi) return;
-    onScroll();
-    onSelect();
     emblaApi.on('scroll', onScroll);
     emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
     return () => {
       emblaApi.off('scroll', onScroll);
       emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
     };
   }, [emblaApi, onScroll, onSelect]);
 
@@ -103,7 +102,7 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
           text: `Check out this listing on CampusNest: ${title}`,
           url: window.location.href,
         });
-      } catch (err) {}
+      } catch {}
     } else {
       // Fallback: Copy to clipboard
       navigator.clipboard.writeText(window.location.href);
@@ -160,7 +159,8 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
                 <img
                   src={slide.url}
                   alt={`${title} - view ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-75"
+                  style={{ transform: `translate3d(${parallaxValues[index] || 0}%, 0, 0)` }}
                   loading={index === 0 ? 'eager' : 'lazy'}
                 />
               )}
@@ -245,6 +245,3 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
     </div>
   );
 }
-
-// Extra helper for useMemo hook inside components
-import { useMemo } from 'react';

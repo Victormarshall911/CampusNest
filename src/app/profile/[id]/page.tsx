@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { User, ArrowLeft, Building } from 'lucide-react';
+import { User, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function ProfilePlaceholderPage() {

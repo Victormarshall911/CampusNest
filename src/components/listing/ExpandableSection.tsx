@@ -3,7 +3,6 @@
 import { useState, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface ExpandableSectionProps {
   title: string;

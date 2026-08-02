@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import SearchBar from '@/components/discover/SearchBar';
 import FilterChips from '@/components/discover/FilterChips';
 import ResultsToggle from '@/components/discover/ResultsToggle';
 import ResultsGrid from '@/components/discover/ResultsGrid';
 import ResultsMap from '@/components/discover/ResultsMap';
-import { SkeletonFeed } from '@/components/ui/SkeletonLoader';
 import { filterListings, defaultFilters, type Filters } from '@/lib/filterListings';
 import { mockFeed, type ListingPost } from '@/data/mockData';
 

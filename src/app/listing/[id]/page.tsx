@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import {
@@ -13,9 +13,7 @@ import {
   GraduationCap,
   Scale,
   Star,
-  Users,
   Compass,
-  ArrowLeft,
 } from 'lucide-react';
 import { getListingById } from '@/lib/getListingById';
 import { formatNaira } from '@/lib/utils';
@@ -32,7 +30,6 @@ import StickyBottomBar from '@/components/listing/StickyBottomBar';
 
 export default function ListingDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
 
   const [listing, setListing] = useState<ListingPost | null>(null);

@@ -4,7 +4,6 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X } from 'lucide-react';
 import { useDebouncedCallback } from 'use-debounce';
-import { cn } from '@/lib/utils';
 
 interface SearchBarProps {
   value: string;

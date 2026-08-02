@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Clock, Check, X } from 'lucide-react';
+import { Calendar, Clock, Check } from 'lucide-react';
 import Link from 'next/link';
-import { formatNaira, cn } from '@/lib/utils';
+import { formatNaira } from '@/lib/utils';
 import FilterSheet from '@/components/discover/FilterSheet';
 
 interface StickyBottomBarProps {

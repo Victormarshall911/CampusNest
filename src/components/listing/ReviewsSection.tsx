@@ -1,6 +1,6 @@
 'use client';
 
-import { Star, BadgeCheck, MessageSquareX, Sparkles } from 'lucide-react';
+import { Star, BadgeCheck, MessageSquareX } from 'lucide-react';
 import { motion } from 'motion/react';
 import Avatar from '@/components/ui/Avatar';
 import { timeAgo, cn } from '@/lib/utils';
