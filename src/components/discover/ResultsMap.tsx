@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, X } from 'lucide-react';
@@ -73,8 +74,8 @@ function ListingPreview({
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
       className="absolute bottom-4 left-4 right-4 z-50"
     >
-      <div className="glass-elevated rounded-2xl overflow-hidden">
-        <div className="flex gap-3 p-3">
+      <div className="glass-elevated rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-shadow">
+        <Link href={`/listings/${listing.id}`} className="flex gap-3 p-3">
           {/* Image */}
           <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0">
             <img
@@ -104,12 +105,16 @@ function ListingPreview({
           </div>
           {/* Close */}
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="p-1 rounded-full hover:bg-surface-secondary self-start shrink-0"
           >
             <X className="w-4 h-4 text-text-tertiary" />
           </button>
-        </div>
+        </Link>
       </div>
     </motion.div>
   );
