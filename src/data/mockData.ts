@@ -9,6 +9,8 @@ export interface University {
   shortName: string;
   state: string;
   areas: string[];
+  lat: number;
+  lng: number;
 }
 
 export interface Landlord {
@@ -41,6 +43,9 @@ export interface ListingPost {
   isSaved: boolean;
   createdAt: string;
   distance: string;
+  distanceKm: number;
+  lat: number;
+  lng: number;
 }
 
 export interface ReviewPost {
@@ -99,6 +104,8 @@ export const universities: University[] = [
     shortName: 'UNILAG',
     state: 'Lagos',
     areas: ['Akoka', 'Yaba', 'Bariga', 'Onike', 'Abule-Oja', 'Iwaya'],
+    lat: 6.5158,
+    lng: 3.3898,
   },
   {
     id: 'ui',
@@ -106,6 +113,8 @@ export const universities: University[] = [
     shortName: 'UI',
     state: 'Oyo',
     areas: ['Bodija', 'Mokola', 'Agbowo', 'Sango', 'Ojoo', 'Samonda'],
+    lat: 7.4400,
+    lng: 3.9000,
   },
   {
     id: 'oau',
@@ -113,6 +122,8 @@ export const universities: University[] = [
     shortName: 'OAU',
     state: 'Osun',
     areas: ['Ile-Ife', 'Mayfair', 'Road 7', 'Opa', 'Modakeke'],
+    lat: 7.5200,
+    lng: 4.5200,
   },
   {
     id: 'abu',
@@ -120,6 +131,8 @@ export const universities: University[] = [
     shortName: 'ABU',
     state: 'Kaduna',
     areas: ['Samaru', 'Zaria', 'Sabon Gari', 'Kongo'],
+    lat: 11.1500,
+    lng: 7.6500,
   },
   {
     id: 'unn',
@@ -127,6 +140,8 @@ export const universities: University[] = [
     shortName: 'UNN',
     state: 'Enugu',
     areas: ['Nsukka', 'Odenigbo', 'Hilltop', 'Onuiyi'],
+    lat: 6.8600,
+    lng: 7.3900,
   },
   {
     id: 'covenant',
@@ -134,6 +149,8 @@ export const universities: University[] = [
     shortName: 'CU',
     state: 'Ogun',
     areas: ['Canaan Land', 'Ota', 'Sango-Ota'],
+    lat: 6.6720,
+    lng: 3.1580,
   },
   {
     id: 'lasu',
@@ -141,6 +158,8 @@ export const universities: University[] = [
     shortName: 'LASU',
     state: 'Lagos',
     areas: ['Ojo', 'Alaba', 'Igando', 'Isheri'],
+    lat: 6.4570,
+    lng: 3.2010,
   },
   {
     id: 'futa',
@@ -148,6 +167,8 @@ export const universities: University[] = [
     shortName: 'FUTA',
     state: 'Ondo',
     areas: ['Aule', 'FUTA South Gate', 'Obele', 'Ijapo'],
+    lat: 7.3000,
+    lng: 5.1350,
   },
   {
     id: 'unilorin',
@@ -155,6 +176,8 @@ export const universities: University[] = [
     shortName: 'UNILORIN',
     state: 'Kwara',
     areas: ['Tanke', 'Gate', 'Pipeline', 'Tipper Garage'],
+    lat: 8.4800,
+    lng: 4.5400,
   },
   {
     id: 'uniben',
@@ -162,6 +185,8 @@ export const universities: University[] = [
     shortName: 'UNIBEN',
     state: 'Edo',
     areas: ['Ekosodin', 'Osasogie', 'BDPA', 'Ugbowo'],
+    lat: 6.3980,
+    lng: 5.6120,
   },
 ];
 
@@ -348,6 +373,9 @@ function generateListings(): ListingPost[] {
       isSaved: Math.random() > 0.8,
       createdAt: randomDate(30),
       distance: `${(Math.random() * 3 + 0.2).toFixed(1)}km from campus`,
+      distanceKm: parseFloat((Math.random() * 3 + 0.2).toFixed(1)),
+      lat: uni.lat + (Math.random() - 0.5) * 0.04,
+      lng: uni.lng + (Math.random() - 0.5) * 0.04,
     });
   }
   return listings;

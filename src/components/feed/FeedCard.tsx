@@ -11,12 +11,13 @@ import type { FeedPost, ListingPost, ReviewPost, RoommatePost } from '@/data/moc
 interface FeedCardProps {
   post: FeedPost;
   index: number;
+  compact?: boolean;
 }
 
-export default function FeedCard({ post, index }: FeedCardProps) {
+export default function FeedCard({ post, index, compact = false }: FeedCardProps) {
   switch (post.type) {
     case 'listing':
-      return <ListingCard post={post} index={index} />;
+      return <ListingCard post={post} index={index} compact={compact} />;
     case 'review':
       return <ReviewCard post={post} index={index} />;
     case 'roommate-request':
@@ -27,7 +28,7 @@ export default function FeedCard({ post, index }: FeedCardProps) {
 // ============================================
 // Listing Card
 // ============================================
-function ListingCard({ post, index }: { post: ListingPost; index: number }) {
+function ListingCard({ post, index, compact = false }: { post: ListingPost; index: number; compact?: boolean }) {
   const [liked, setLiked] = useState(post.isLiked);
   const [saved, setSaved] = useState(post.isSaved);
   const [likeCount, setLikeCount] = useState(post.likes);
@@ -46,6 +47,83 @@ function ListingCard({ post, index }: { post: ListingPost; index: number }) {
       setLikeCount((c) => c + 1);
     }
   }, [liked]);
+
+  // ===== Compact variant for Discover grid =====
+  if (compact) {
+    return (
+      <motion.article
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{
+          type: 'spring',
+          stiffness: 300,
+          damping: 30,
+          delay: Math.min(index * 0.03, 0.3),
+        }}
+        className="glass-solid rounded-xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+      >
+        {/* Image — single image, no carousel in compact */}
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <img
+            src={post.images[0]}
+            alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+          {/* Price overlay */}
+          <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-sm">
+            <span className="text-white text-sm font-bold">{formatNaira(post.price)}</span>
+            <span className="text-white/70 text-xs">{post.priceLabel}</span>
+          </div>
+          {/* Save button */}
+          <motion.button
+            whileTap={{ scale: 0.75 }}
+            onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm"
+          >
+            <Bookmark className={cn(
+              'w-4 h-4',
+              saved ? 'fill-white text-white' : 'text-white/80'
+            )} />
+          </motion.button>
+          {/* Image count */}
+          {post.images.length > 1 && (
+            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/40 backdrop-blur-sm text-white text-[10px] font-medium">
+              1/{post.images.length}
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="p-2.5">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs font-medium text-cn-purple bg-cn-purple/10 px-1.5 py-0.5 rounded">
+              {post.roomType}
+            </span>
+            {post.landlord.isVerified && (
+              <span className="text-[10px] text-cn-blue font-medium">✓ Verified</span>
+            )}
+          </div>
+          <h3 className="text-xs font-semibold text-text-primary leading-tight line-clamp-1 mb-1">
+            {post.title}
+          </h3>
+          <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="truncate">{post.university.shortName} · {post.area}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <div className="flex items-center gap-2">
+              <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="flex items-center gap-0.5">
+                <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-[var(--like-red)] text-[var(--like-red)]' : 'text-text-tertiary')} />
+                <span className="text-[10px] text-text-tertiary">{formatCount(likeCount)}</span>
+              </button>
+            </div>
+            <span className="text-[10px] text-text-tertiary">{post.distance}</span>
+          </div>
+        </div>
+      </motion.article>
+    );
+  }
 
   return (
     <motion.article

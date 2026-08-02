@@ -1,20 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'discover', label: 'Discover', icon: Search },
-  { id: 'post', label: 'Post', icon: PlusSquare },
-  { id: 'messages', label: 'Messages', icon: MessageCircle },
-  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'home', label: 'Home', icon: Home, href: '/' },
+  { id: 'discover', label: 'Discover', icon: Search, href: '/discover' },
+  { id: 'post', label: 'Post', icon: PlusSquare, href: '/post' },
+  { id: 'messages', label: 'Messages', icon: MessageCircle, href: '/messages' },
+  { id: 'profile', label: 'Profile', icon: User, href: '/profile' },
 ];
 
 export default function BottomNav() {
-  const [activeTab, setActiveTab] = useState('home');
+  const pathname = usePathname();
 
   return (
     <>
@@ -26,13 +27,13 @@ export default function BottomNav() {
         <div className="flex items-center justify-around px-2 h-16">
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+            const isActive = tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href);
             const isPost = tab.id === 'post';
 
             return (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={tab.href}
                 className={cn(
                   'relative flex flex-col items-center justify-center gap-0.5 w-16 h-14 rounded-xl transition-colors',
                   isActive && !isPost && 'text-cn-purple',
@@ -77,15 +78,15 @@ export default function BottomNav() {
                     )}
                   </>
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>
       </nav>
 
-      {/* Desktop Sidebar — placeholder for later */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-solid border-r border-[var(--border-light)] flex-col p-4 z-50">
-        <div className="flex items-center gap-2 mb-8 px-2">
+        <Link href="/" className="flex items-center gap-2 mb-8 px-2">
           <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
             <Home className="w-4 h-4 text-white" />
           </div>
@@ -93,17 +94,17 @@ export default function BottomNav() {
             <span className="gradient-text">Campus</span>
             <span className="text-text-primary">Nest</span>
           </span>
-        </div>
+        </Link>
 
         <div className="flex flex-col gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+            const isActive = tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href);
 
             return (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={tab.href}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
                   isActive
@@ -120,7 +121,7 @@ export default function BottomNav() {
                     transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                   />
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>
