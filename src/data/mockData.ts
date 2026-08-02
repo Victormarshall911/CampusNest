@@ -639,3 +639,185 @@ export function generateFeed(): FeedPost[] {
 
 // Pre-generated feed for consistent hydration
 export const mockFeed = generateFeed();
+
+// ============================================
+// Campus Users — students + landlords
+// ============================================
+
+export interface CampusUser {
+  id: string;
+  name: string;
+  avatar: string;
+  role: 'student' | 'landlord';
+  isVerified: boolean;
+  joinedDate: string;
+  bio?: string;
+  // Student-only
+  universityId?: string;
+  universityShortName?: string;
+  level?: string;
+  department?: string;
+  savedListingIds?: string[];
+  postIds?: string[]; // ReviewPost | RoommatePost ids from the feed
+  // Landlord-only
+  responseTime?: string;
+  rating?: number;
+  activeListingIds?: string[]; // derived from listings where listing.landlord.id === user.id
+}
+
+/**
+ * Fixed constant for "own profile" detection in mock mode.
+ * Swap to 'l1' before a landlord own-profile QA pass.
+ */
+export const CURRENT_USER_ID = 's1';
+
+export const mockUsers: CampusUser[] = [
+  // ---- Students ----
+  {
+    id: 's1',
+    name: 'Chioma Nwosu',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
+    role: 'student',
+    isVerified: true,
+    joinedDate: 'January 2025',
+    bio: 'Final year Law student at UNILAG. Passionate about affordable student housing. 🏠📚',
+    universityId: 'unilag',
+    universityShortName: 'UNILAG',
+    level: '400 Level',
+    department: 'Law',
+    savedListingIds: ['listing-1', 'listing-3', 'listing-7'],
+    postIds: ['review-1'],
+  },
+  {
+    id: 's2',
+    name: 'Tunde Olaitan',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
+    role: 'student',
+    isVerified: false,
+    joinedDate: 'March 2025',
+    bio: 'Economics student at UI. Always hunting the best lodge value near campus. 🔍',
+    universityId: 'ui',
+    universityShortName: 'UI',
+    level: '300 Level',
+    department: 'Economics',
+    savedListingIds: ['listing-4', 'listing-8'],
+    postIds: ['review-2'],
+  },
+  {
+    id: 's3',
+    name: 'Amara Ekwueme',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
+    role: 'student',
+    isVerified: false,
+    joinedDate: 'September 2025',
+    bio: 'Architecture student at OAU. DM for campus housing tips! 🏗️',
+    universityId: 'oau',
+    universityShortName: 'OAU',
+    level: '200 Level',
+    department: 'Architecture',
+    savedListingIds: [],
+    postIds: ['review-3', 'roommate-1'],
+  },
+  {
+    id: 's4',
+    name: 'Khadija Aliyu',
+    avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=150&h=150&fit=crop&crop=face',
+    role: 'student',
+    isVerified: true,
+    joinedDate: 'October 2024',
+    bio: 'Medicine at ABU Zaria. Looking for quiet accommodation with serious students. 🩺',
+    universityId: 'abu',
+    universityShortName: 'ABU',
+    level: '200 Level',
+    department: 'Medicine',
+    savedListingIds: ['listing-9'],
+    postIds: ['review-4', 'roommate-2'],
+  },
+
+  // ---- Landlords (ids match Landlord.id values) ----
+  // activeListingIds derived: landlords[i % 7] → listing.id = `listing-${i+1}` for i=0..31
+  {
+    id: 'l1',
+    name: 'Chief Adebayo Properties',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: true,
+    joinedDate: 'March 2021',
+    bio: 'Premium student housing near UNILAG. 12+ years experience. Verified, trusted, fast response.',
+    responseTime: 'Usually responds within 1hr',
+    rating: 4.8,
+    activeListingIds: ['listing-1', 'listing-8', 'listing-15', 'listing-22', 'listing-29'],
+  },
+  {
+    id: 'l2',
+    name: 'Mrs. Okonkwo Realty',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: true,
+    joinedDate: 'September 2022',
+    bio: 'Student housing specialist covering UI and surrounding areas. Fastest response time on CampusNest!',
+    responseTime: 'Usually responds within 30min',
+    rating: 4.9,
+    activeListingIds: ['listing-2', 'listing-9', 'listing-16', 'listing-23', 'listing-30'],
+  },
+  {
+    id: 'l3',
+    name: 'Emeka Housing',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: false,
+    joinedDate: 'January 2023',
+    bio: 'Affordable lodges near OAU. Good price, good location, honest deals.',
+    responseTime: 'Usually responds within 2hrs',
+    rating: 4.2,
+    activeListingIds: ['listing-3', 'listing-10', 'listing-17', 'listing-24', 'listing-31'],
+  },
+  {
+    id: 'l4',
+    name: 'Alhaji Musa Estates',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: true,
+    joinedDate: 'June 2020',
+    bio: 'Trusted landlord since 2020. 20+ units across Samaru, Zaria and ABU areas.',
+    responseTime: 'Usually responds within 45min',
+    rating: 4.6,
+    activeListingIds: ['listing-4', 'listing-11', 'listing-18', 'listing-25', 'listing-32'],
+  },
+  {
+    id: 'l5',
+    name: 'Ngozi Homes Ltd',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: true,
+    joinedDate: 'November 2021',
+    bio: 'Quality accommodation near UNN, Nsukka. Female-friendly options available. 🌿',
+    responseTime: 'Usually responds within 1hr',
+    rating: 4.7,
+    activeListingIds: ['listing-5', 'listing-12', 'listing-19', 'listing-26'],
+  },
+  {
+    id: 'l6',
+    name: 'Kalu & Sons Agency',
+    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: false,
+    joinedDate: 'May 2023',
+    bio: 'New to CampusNest. Budget-friendly rooms near Covenant University.',
+    responseTime: 'Usually responds within 3hrs',
+    rating: 3.9,
+    activeListingIds: ['listing-6', 'listing-13', 'listing-20', 'listing-27'],
+  },
+  {
+    id: 'l7',
+    name: 'Folashade Apartments',
+    avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&h=150&fit=crop&crop=face',
+    role: 'landlord',
+    isVerified: true,
+    joinedDate: 'February 2022',
+    bio: 'Spacious, clean, secure apartments near FUTA and LASU. Trusted student housing since 2022.',
+    responseTime: 'Usually responds within 1hr',
+    rating: 4.5,
+    activeListingIds: ['listing-7', 'listing-14', 'listing-21', 'listing-28'],
+  },
+];
