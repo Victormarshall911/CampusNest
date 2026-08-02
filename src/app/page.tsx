@@ -1,65 +1,179 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { RefreshCw, Sparkles } from 'lucide-react';
+import FeedHeader from '@/components/feed/FeedHeader';
+import FeedCard from '@/components/feed/FeedCard';
+import { SkeletonFeed } from '@/components/ui/SkeletonLoader';
+import { mockFeed, type FeedPost } from '@/data/mockData';
+
+const POSTS_PER_PAGE = 8;
+
+export default function HomePage() {
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  // Initial load with simulated delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const initialPosts = mockFeed.slice(0, POSTS_PER_PAGE);
+      setPosts(initialPosts);
+      setPage(1);
+      setLoading(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Infinite scroll — load more posts
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    setTimeout(() => {
+      const start = page * POSTS_PER_PAGE;
+      const end = start + POSTS_PER_PAGE;
+      const newPosts = mockFeed.slice(start, end);
+
+      if (newPosts.length === 0) {
+        setHasMore(false);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+        setPage((prev) => prev + 1);
+      }
+      setLoadingMore(false);
+    }, 800);
+  }, [page, loadingMore, hasMore]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMore, loading]);
+
+  // Pull to refresh
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      // Shuffle feed slightly for fresh feel
+      const shuffled = [...mockFeed].sort(() => Math.random() - 0.5);
+      setPosts(shuffled.slice(0, POSTS_PER_PAGE));
+      setPage(1);
+      setHasMore(true);
+      setRefreshing(false);
+    }, 1500);
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen">
+      <FeedHeader />
+
+      {/* Header spacer */}
+      <div className="h-16" />
+
+      {/* Pull to refresh button */}
+      <div className="max-w-xl mx-auto px-4 pt-3 pb-1">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl glass text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <motion.div
+            animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+            transition={refreshing ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <RefreshCw className="w-4 h-4" />
+          </motion.div>
+          {refreshing ? 'Refreshing your feed…' : 'Pull to refresh'}
+        </motion.button>
+      </div>
+
+      {/* Feed content */}
+      <div className="max-w-xl mx-auto px-4 py-4">
+        {loading ? (
+          <SkeletonFeed count={3} />
+        ) : (
+          <>
+            {/* University filter chips */}
+            <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide">
+              {['All', 'UNILAG', 'UI', 'OAU', 'ABU', 'UNN', 'LASU', 'FUTA', 'UNIBEN'].map((uni, i) => (
+                <motion.button
+                  key={uni}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 25,
+                    delay: i * 0.04,
+                  }}
+                  whileTap={{ scale: 0.92 }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all shrink-0 ${
+                    i === 0
+                      ? 'gradient-bg text-white shadow-md shadow-cn-purple/20'
+                      : 'glass text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {uni}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Feed posts */}
+            <AnimatePresence mode="popLayout">
+              <div className="space-y-4">
+                {posts.map((post, index) => (
+                  <FeedCard key={post.id} post={post} index={index} />
+                ))}
+              </div>
+            </AnimatePresence>
+
+            {/* Loading more indicator */}
+            {loadingMore && (
+              <div className="py-8">
+                <SkeletonFeed count={2} />
+              </div>
+            )}
+
+            {/* End of feed */}
+            {!hasMore && posts.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="py-12 text-center"
+              >
+                <div className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl glass">
+                  <Sparkles className="w-4 h-4 text-cn-purple" />
+                  <span className="text-sm font-medium text-text-secondary">
+                    You&apos;ve seen all posts! Check back later for new listings.
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Intersection observer trigger */}
+            <div ref={observerRef} className="h-4" />
+          </>
+        )}
+      </div>
+    </main>
   );
 }
