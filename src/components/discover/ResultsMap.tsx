@@ -310,14 +310,16 @@ export default function ResultsMap({ listings, selectedUniversity }: ResultsMapP
 
       {/* Map legend */}
       <div className="absolute top-3 right-3 z-30">
-        <div className="glass-solid rounded-lg px-3 py-2 text-[10px] text-text-secondary space-y-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full gradient-bg border border-white" />
-            <span>University</span>
+        <div className="glass-solid rounded-xl p-2.5 text-[10px] font-semibold text-text-secondary shadow-md flex flex-col gap-1.5 border border-white/40">
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-full gradient-bg border border-white shadow-sm shrink-0" />
+            <span>Campus</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-1.5 rounded bg-white border border-[var(--border-light)]" />
-            <span>Listing</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-md bg-white border border-[var(--border-light)] flex items-center justify-center shadow-sm shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-cn-purple" />
+            </div>
+            <span>Lodge</span>
           </div>
         </div>
       </div>
