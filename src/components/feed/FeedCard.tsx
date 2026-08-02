@@ -180,8 +180,8 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
           className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
         >
           <motion.div
-            animate={liked ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 10 }}
+            animate={{ scale: liked ? 1.2 : 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 12 }}
           >
             <Heart
               className={cn(
@@ -217,8 +217,8 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
           className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
         >
           <motion.div
-            animate={saved ? { scale: [1, 1.3, 1], rotate: [0, -15, 0] } : { scale: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+            animate={{ scale: saved ? 1.2 : 1, rotate: saved ? -15 : 0 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 15 }}
           >
             <Bookmark
               className={cn(

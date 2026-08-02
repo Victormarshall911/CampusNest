@@ -47,7 +47,7 @@ export default function RoomTypeFilter({ selected, onChange }: RoomTypeFilterPro
             )}
           >
             <motion.div
-              animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+              animate={{ scale: isActive ? 1.1 : 1 }}
               transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Icon className={cn(

@@ -59,7 +59,7 @@ export default function AmenitiesFilter({ selected, onChange }: AmenitiesFilterP
               )}
             >
               <motion.div
-                animate={isActive ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+                animate={{ scale: isActive ? 1.15 : 1 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               >
                 <Icon className="w-3.5 h-3.5" />
