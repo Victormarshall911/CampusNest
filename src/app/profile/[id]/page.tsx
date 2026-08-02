@@ -16,6 +16,8 @@ import {
   getAggregateRating,
 } from '@/lib/getUserContent';
 
+import { mockPostStore } from '@/lib/mockPostStore';
+
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileTabs, { TabContent } from '@/components/profile/ProfileTabs';
 import ListingsGrid from '@/components/profile/ListingsGrid';
@@ -108,6 +110,15 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<CampusUser | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('');
+  const [tick, setTick] = useState(0);
+
+  // Sync / subscribe to store changes
+  useEffect(() => {
+    const unsubscribe = mockPostStore.subscribe(() => {
+      setTick((t) => t + 1);
+    });
+    return unsubscribe;
+  }, []);
 
   // Simulate async lookup
   useEffect(() => {
@@ -166,7 +177,6 @@ export default function ProfilePage() {
         {/* Segmented control */}
         <ProfileTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
-        {/* Tab content — cross-fades via TabContent wrapper */}
         <TabContent tabKey={activeTab}>
           {isStudent ? (
             activeTab === 'saved' ? (
@@ -187,6 +197,8 @@ export default function ProfilePage() {
           )}
         </TabContent>
       </div>
+      {/* Hidden tracker to trigger re-renders on store updates */}
+      <span className="hidden" aria-hidden="true">{tick}</span>
     </main>
   );
 }

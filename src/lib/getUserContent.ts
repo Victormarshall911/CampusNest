@@ -7,8 +7,7 @@ import {
   type ListingReview,
 } from '@/data/mockData';
 
-/** All listing posts in the feed, pre-filtered for efficiency. */
-const allListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+import { mockPostStore } from '@/lib/mockPostStore';
 
 /**
  * Returns saved listings for a student user.
@@ -17,6 +16,11 @@ const allListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing
 export function getSavedListings(userId: string): ListingPost[] {
   const user = mockUsers.find((u) => u.id === userId);
   if (!user?.savedListingIds?.length) return [];
+  
+  const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+  const sessionListings = mockPostStore.getListings();
+  const allListings = [...sessionListings, ...staticListings];
+  
   return allListings.filter((l) => user.savedListingIds!.includes(l.id));
 }
 
@@ -26,12 +30,24 @@ export function getSavedListings(userId: string): ListingPost[] {
  */
 export function getUserPosts(userId: string): (ReviewPost | RoommatePost)[] {
   const user = mockUsers.find((u) => u.id === userId);
-  if (!user?.postIds?.length) return [];
-  return mockFeed.filter(
+  if (!user) return [];
+  
+  const staticPosts = mockFeed.filter(
     (p): p is ReviewPost | RoommatePost =>
-      (p.type === 'review' || p.type === 'roommate-request') &&
-      user.postIds!.includes(p.id)
+      p.type === 'review' || p.type === 'roommate-request'
   );
+  const sessionReviews = mockPostStore.getReviews();
+  const sessionRoommates = mockPostStore.getRoommates();
+  
+  const allPosts = [...sessionReviews, ...sessionRoommates, ...staticPosts];
+  
+  return allPosts.filter((p) => {
+    if (user.postIds?.includes(p.id)) return true;
+    if (p.id.startsWith('session-')) {
+      if ('author' in p && p.author.name === user.name) return true;
+    }
+    return false;
+  });
 }
 
 /**
@@ -40,8 +56,13 @@ export function getUserPosts(userId: string): (ReviewPost | RoommatePost)[] {
  */
 export function getUserActiveListings(userId: string): ListingPost[] {
   const user = mockUsers.find((u) => u.id === userId);
-  if (!user?.activeListingIds?.length) return [];
-  return allListings.filter((l) => user.activeListingIds!.includes(l.id));
+  if (!user) return [];
+  
+  const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+  const sessionListings = mockPostStore.getListings();
+  const allListings = [...sessionListings, ...staticListings];
+  
+  return allListings.filter((l) => l.landlord.id === userId);
 }
 
 /** Augmented review — carries the listing it came from for display. */

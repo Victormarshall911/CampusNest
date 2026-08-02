@@ -10,23 +10,37 @@ import ResultsGrid from '@/components/discover/ResultsGrid';
 import ResultsMap from '@/components/discover/ResultsMap';
 import { filterListings, defaultFilters, type Filters } from '@/lib/filterListings';
 import { mockFeed, type ListingPost } from '@/data/mockData';
-
-// Extract only listing posts from the mixed feed
-const allListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+import { mockPostStore } from '@/lib/mockPostStore';
 
 export default function DiscoverPage() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [view, setView] = useState<'grid' | 'map'>('grid');
   const [loading, setLoading] = useState(true);
+  const [listings, setListings] = useState<ListingPost[]>(() => {
+    const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+    const sessionListings = mockPostStore.getListings();
+    return [...sessionListings, ...staticListings];
+  });
 
-  // Simulate initial load
+  // Sync listings on mount + store changes
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
+
+    const unsubscribe = mockPostStore.subscribe(() => {
+      // Re-query latest listing sources
+      const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
+      const sessionListings = mockPostStore.getListings();
+      setListings([...sessionListings, ...staticListings]);
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   // Filter results — instant since it's all client-side mock data
-  const results = useMemo(() => filterListings(allListings, filters), [filters]);
+  const results = useMemo(() => filterListings(listings, filters), [listings, filters]);
 
   const handleSearchChange = (query: string) => {
     setFilters((prev) => ({ ...prev, searchQuery: query }));

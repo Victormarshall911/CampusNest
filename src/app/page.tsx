@@ -7,6 +7,7 @@ import FeedHeader from '@/components/feed/FeedHeader';
 import FeedCard from '@/components/feed/FeedCard';
 import { SkeletonFeed } from '@/components/ui/SkeletonLoader';
 import { mockFeed, type FeedPost } from '@/data/mockData';
+import { mockPostStore } from '@/lib/mockPostStore';
 
 const POSTS_PER_PAGE = 8;
 
@@ -19,16 +20,31 @@ export default function HomePage() {
   const [refreshing, setRefreshing] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
 
-  // Initial load with simulated delay
+  // Setup local data source
+  const getFeedData = useCallback(() => {
+    return mockPostStore.getMergedFeed(mockFeed);
+  }, []);
+
+  // Initial load and subscribe to store changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      const initialPosts = mockFeed.slice(0, POSTS_PER_PAGE);
-      setPosts(initialPosts);
+      const currentFeed = getFeedData();
+      setPosts(currentFeed.slice(0, POSTS_PER_PAGE));
       setPage(1);
       setLoading(false);
     }, 1200);
-    return () => clearTimeout(timer);
-  }, []);
+
+    const unsubscribe = mockPostStore.subscribe(() => {
+      const currentFeed = getFeedData();
+      const pageCount = Math.max(1, page);
+      setPosts(currentFeed.slice(0, pageCount * POSTS_PER_PAGE));
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [getFeedData, page]);
 
   // Infinite scroll — load more posts
   const loadMore = useCallback(() => {
@@ -36,9 +52,10 @@ export default function HomePage() {
     setLoadingMore(true);
 
     setTimeout(() => {
+      const currentFeed = getFeedData();
       const start = page * POSTS_PER_PAGE;
       const end = start + POSTS_PER_PAGE;
-      const newPosts = mockFeed.slice(start, end);
+      const newPosts = currentFeed.slice(start, end);
 
       if (newPosts.length === 0) {
         setHasMore(false);
@@ -48,7 +65,7 @@ export default function HomePage() {
       }
       setLoadingMore(false);
     }, 800);
-  }, [page, loadingMore, hasMore]);
+  }, [page, loadingMore, hasMore, getFeedData]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -72,14 +89,18 @@ export default function HomePage() {
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => {
-      // Shuffle feed slightly for fresh feel
-      const shuffled = [...mockFeed].sort(() => Math.random() - 0.5);
+      const currentFeed = getFeedData();
+      // Keep session-created posts at top, shuffle static mock posts for fresh feel
+      const sessionPosts = currentFeed.filter((p) => p.id.startsWith('session-'));
+      const staticPosts = currentFeed.filter((p) => !p.id.startsWith('session-'));
+      const shuffledStatic = [...staticPosts].sort(() => Math.random() - 0.5);
+      const shuffled = [...sessionPosts, ...shuffledStatic];
       setPosts(shuffled.slice(0, POSTS_PER_PAGE));
       setPage(1);
       setHasMore(true);
       setRefreshing(false);
     }, 1500);
-  }, []);
+  }, [getFeedData]);
 
   return (
     <main className="min-h-screen">
