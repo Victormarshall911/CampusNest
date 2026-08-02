@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { mockChatStore } from '@/lib/mockChatStore';
+import { CURRENT_USER_ID } from '@/data/mockData';
 
 const tabs = [
   { id: 'home', label: 'Home', icon: Home, href: '/' },
@@ -16,6 +19,17 @@ const tabs = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState<number>(() => {
+    return mockChatStore.getUnreadCount(CURRENT_USER_ID);
+  });
+
+  useEffect(() => {
+    const unsubscribe = mockChatStore.subscribe(() => {
+      setUnreadCount(mockChatStore.getUnreadCount(CURRENT_USER_ID));
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <>
@@ -53,13 +67,18 @@ export default function BottomNav() {
                       whileTap={{ scale: 0.85 }}
                       animate={isActive ? { scale: 1 } : { scale: 0.95 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                      className="relative"
                     >
                       <Icon
                         className={cn(
                           'w-6 h-6 transition-all duration-200',
-                          isActive && 'stroke-[2.5px]'
+                           isActive && 'stroke-[2.5px]'
                         )}
                       />
+                      {/* Unread badge dot */}
+                      {tab.id === 'messages' && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#6C3CE1] text-white text-[7px] font-black flex items-center justify-center border border-white animate-pulse" />
+                      )}
                     </motion.div>
                     <span className={cn(
                       'text-[10px] font-medium transition-opacity',
@@ -114,6 +133,11 @@ export default function BottomNav() {
               >
                 <Icon className={cn('w-5 h-5', isActive && 'stroke-[2.5px]')} />
                 {tab.label}
+                {tab.id === 'messages' && unreadCount > 0 && (
+                  <span className="ml-2 w-4.5 h-4.5 rounded-full bg-[#6C3CE1] text-white text-[8px] font-black flex items-center justify-center border border-white shrink-0 shadow-sm" style={{ minWidth: '18px' }}>
+                    {unreadCount}
+                  </span>
+                )}
                 {isActive && (
                   <motion.div
                     layoutId="desktopActiveTab"

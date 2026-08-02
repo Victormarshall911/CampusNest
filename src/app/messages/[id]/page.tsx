@@ -1,56 +1,163 @@
 'use client';
 
+import { useState, useEffect, Suspense } from 'react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { MessageSquare, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'motion/react';
-import GlassCard from '@/components/ui/GlassCard';
+import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { CURRENT_USER_ID, mockUsers } from '@/data/mockData';
+import { mockChatStore, type Message, type Conversation } from '@/lib/mockChatStore';
+import ChatThread from '@/components/messages/ChatThread';
+import MessageInput from '@/components/messages/MessageInput';
 
-export default function MessagesPlaceholderPage() {
+// Skeleton Loader
+function ChatSkeleton() {
+  return (
+    <div className="flex flex-col h-screen bg-[var(--background)]">
+      {/* Header Skeleton */}
+      <div className="px-4 py-3 border-b border-[var(--border-light)] flex items-center gap-3 animate-pulse">
+        <div className="w-8 h-8 rounded-full bg-surface-secondary" />
+        <div className="space-y-1">
+          <div className="h-3 bg-surface-secondary rounded w-24" />
+          <div className="h-2 bg-surface-secondary rounded w-16" />
+        </div>
+      </div>
+      {/* Messages Skeleton */}
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div className="flex flex-col gap-1 items-start max-w-[70%] animate-pulse">
+          <div className="h-9 bg-surface-secondary rounded-2xl rounded-tl-sm w-44" />
+          <div className="h-2 bg-surface-secondary rounded w-10 ml-1" />
+        </div>
+        <div className="flex flex-col gap-1 items-end max-w-[70%] ml-auto animate-pulse">
+          <div className="h-9 bg-surface-secondary rounded-2xl rounded-tr-sm w-56" />
+          <div className="h-2 bg-surface-secondary rounded w-10 mr-1" />
+        </div>
+        <div className="flex flex-col gap-1 items-start max-w-[70%] animate-pulse">
+          <div className="h-9 bg-surface-secondary rounded-2xl rounded-tl-sm w-36" />
+          <div className="h-2 bg-surface-secondary rounded w-10 ml-1" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Conversation Not Found Error
+function ConversationNotFound() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[var(--background)]">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="max-w-sm space-y-6"
+      >
+        <div className="w-20 h-20 rounded-2xl glass-solid border border-cn-coral/20 flex items-center justify-center mx-auto text-cn-coral">
+          <MessageSquare className="w-10 h-10" />
+        </div>
+        <div className="space-y-2">
+          <h2
+            className="text-xl font-extrabold text-text-primary"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Chat Not Found
+          </h2>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            This chat thread does not exist, or you do not have permission to access it.
+          </p>
+        </div>
+        <Link
+          href="/messages"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white gradient-bg font-semibold shadow-lg shadow-cn-purple/20"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Messages
+        </Link>
+      </motion.div>
+    </main>
+  );
+}
+
+// Inner page component that safely reads useSearchParams
+function ChatRoomInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const id = params.id as string;
+  const listingId = searchParams.get('listingId') || undefined;
+
+  // Use lazy state initialization to avoid set-state-in-effect
+  const [conversation, setConversation] = useState<Conversation | null | undefined>(() => {
+    return mockChatStore.getConversations().find((c) => c.id === id) || null;
+  });
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (!conversation) return [];
+    return mockChatStore.getMessages(conversation.id);
+  });
+
+  // Handle user ID paths — auto create and redirect if needed
+  useEffect(() => {
+    if (conversation === null) {
+      const userExists = mockUsers.some((u) => u.id === id);
+      if (userExists && id !== CURRENT_USER_ID) {
+        const newConvId = mockChatStore.getOrCreateConversation(CURRENT_USER_ID, id, listingId);
+        router.replace(`/messages/${newConvId}`);
+      }
+    }
+  }, [id, conversation, listingId, router]);
+
+  // Subscribe to updates when conversation is loaded
+  useEffect(() => {
+    if (!conversation) return;
+
+    const unsubscribe = mockChatStore.subscribe(() => {
+      const activeConv = mockChatStore.getConversations().find((c) => c.id === conversation.id);
+      if (activeConv) {
+        setConversation(activeConv);
+        setMessages(mockChatStore.getMessages(activeConv.id));
+      }
+    });
+
+    return unsubscribe;
+  }, [conversation]);
+
+  if (conversation === undefined) return <ChatSkeleton />;
+  if (conversation === null) {
+    // If it's a valid user ID, the redirection is happening, so show skeleton
+    const userExists = mockUsers.some((u) => u.id === id);
+    if (userExists && id !== CURRENT_USER_ID) {
+      return <ChatSkeleton />;
+    }
+    return <ConversationNotFound />;
+  }
+
+  const handleSendMessage = (text: string) => {
+    mockChatStore.sendMessage(conversation.id, CURRENT_USER_ID, text);
+  };
 
   return (
-    <main className="min-h-screen max-w-xl mx-auto px-4 py-8 flex flex-col justify-between">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/discover" className="p-2 rounded-full hover:bg-surface-secondary">
-          <ArrowLeft className="w-5 h-5 text-text-primary" />
-        </Link>
-        <h1 className="text-lg font-bold gradient-text" style={{ fontFamily: 'var(--font-display)' }}>
-          Chat Room
-        </h1>
+    <main className="min-h-screen bg-[var(--background)] pb-20 flex flex-col justify-between max-w-xl mx-auto border-x border-[var(--border-light)]">
+      {/* Scrollable Chat Message Area */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <ChatThread
+          conversationId={conversation.id}
+          messages={messages}
+          currentUserId={CURRENT_USER_ID}
+          isTyping={conversation.typingParticipantId !== null}
+        />
       </div>
 
-      {/* Message content placeholder */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex-1 flex flex-col items-center justify-center text-center py-20"
-      >
-        <div className="w-16 h-16 rounded-2xl bg-surface-secondary flex items-center justify-center mb-4">
-          <MessageSquare className="w-8 h-8 text-cn-purple" />
-        </div>
-        <h2 className="text-base font-bold text-text-primary mb-2">
-          Chat with Landlord (ID: {id})
-        </h2>
-        <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
-          Real-time messaging with image sharing and read receipts is coming in **Phase 5**.
-        </p>
-      </motion.div>
-
-      {/* Typing input dummy */}
-      <GlassCard variant="solid" className="p-2 flex items-center gap-2">
-        <input
-          disabled
-          type="text"
-          placeholder="Messaging coming soon..."
-          className="flex-1 bg-transparent text-xs text-text-tertiary outline-none px-2"
-        />
-        <button disabled className="p-2 rounded-lg bg-cn-purple/10 text-cn-purple">
-          <Send className="w-4 h-4" />
-        </button>
-      </GlassCard>
+      {/* Sticky Bottom Message Input box */}
+      <MessageInput onSend={handleSendMessage} />
     </main>
+  );
+}
+
+// Main page component wrapped in Suspense for Next.js useSearchParams compliance
+export default function ChatRoomPage() {
+  return (
+    <Suspense fallback={<ChatSkeleton />}>
+      <ChatRoomInner />
+    </Suspense>
   );
 }
