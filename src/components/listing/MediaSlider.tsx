@@ -41,6 +41,25 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [parallaxValues, setParallaxValues] = useState<number[]>([]);
+
+  const onScroll = useCallback(() => {
+    if (!emblaApi) return;
+    const snaps = emblaApi.scrollSnapList();
+    const scrollProgress = emblaApi.scrollProgress();
+    const slidesCount = snaps.length;
+    
+    const values = snaps.map((_, idx) => {
+      // Calculate scroll progress relative to this slide's target snap
+      // Normalizing snap offset so it translates in the opposite direction of swipe
+      const targetIndex = idx;
+      const progress = scrollProgress * (slidesCount - 1);
+      const diff = progress - targetIndex;
+      return diff * -12; // Parallax translation percentage (e.g. -12% max)
+    });
+    setParallaxValues(values);
+  }, [emblaApi]);
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     const index = emblaApi.selectedScrollSnap();
@@ -55,10 +74,15 @@ export default function MediaSlider({ images, videoUrl, title }: MediaSliderProp
 
   useEffect(() => {
     if (!emblaApi) return;
+    onScroll();
     onSelect();
+    emblaApi.on('scroll', onScroll);
     emblaApi.on('select', onSelect);
-    return () => { emblaApi.off('select', onSelect); };
-  }, [emblaApi, onSelect]);
+    return () => {
+      emblaApi.off('scroll', onScroll);
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onScroll, onSelect]);
 
   const toggleVideo = () => {
     if (!videoRef.current) return;
