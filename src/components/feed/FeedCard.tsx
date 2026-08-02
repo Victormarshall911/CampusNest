@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Heart, MessageCircle, Share2, Bookmark, MapPin, Star, Users, BadgeCheck } from 'lucide-react';
@@ -51,77 +52,90 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
   // ===== Compact variant for Discover grid =====
   if (compact) {
     return (
-      <motion.article
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          type: 'spring',
-          stiffness: 300,
-          damping: 30,
-          delay: Math.min(index * 0.03, 0.3),
-        }}
-        className="glass-solid rounded-xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
-      >
-        {/* Image — single image, no carousel in compact */}
-        <div className="relative aspect-[4/3] overflow-hidden">
-          <img
-            src={post.images[0]}
-            alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-          {/* Price overlay */}
-          <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-sm">
-            <span className="text-white text-sm font-bold">{formatNaira(post.price)}</span>
-            <span className="text-white/70 text-xs">{post.priceLabel}</span>
-          </div>
-          {/* Save button */}
-          <motion.button
-            whileTap={{ scale: 0.75 }}
-            onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm"
-          >
-            <Bookmark className={cn(
-              'w-4 h-4',
-              saved ? 'fill-white text-white' : 'text-white/80'
-            )} />
-          </motion.button>
-          {/* Image count */}
-          {post.images.length > 1 && (
-            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/40 backdrop-blur-sm text-white text-[10px] font-medium">
-              1/{post.images.length}
+      <Link href={`/listing/${post.id}`} className="block">
+        <motion.article
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            type: 'spring',
+            stiffness: 300,
+            damping: 30,
+            delay: Math.min(index * 0.03, 0.3),
+          }}
+          className="glass-solid rounded-xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          {/* Image — single image, no carousel in compact */}
+          <div className="relative aspect-[4/3] overflow-hidden">
+            <img
+              src={post.images[0]}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+            {/* Price overlay */}
+            <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-sm">
+              <span className="text-white text-sm font-bold">{formatNaira(post.price)}</span>
+              <span className="text-white/70 text-xs">{post.priceLabel}</span>
             </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="p-2.5">
-          <div className="flex items-center gap-1 mb-1">
-            <span className="text-xs font-medium text-cn-purple bg-cn-purple/10 px-1.5 py-0.5 rounded">
-              {post.roomType}
-            </span>
-            {post.landlord.isVerified && (
-              <span className="text-[10px] text-cn-blue font-medium">✓ Verified</span>
+            {/* Save button */}
+            <motion.button
+              whileTap={{ scale: 0.75 }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSaved(!saved);
+              }}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm z-10"
+            >
+              <Bookmark className={cn(
+                'w-4 h-4',
+                saved ? 'fill-white text-white' : 'text-white/80'
+              )} />
+            </motion.button>
+            {/* Image count */}
+            {post.images.length > 1 && (
+              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/40 backdrop-blur-sm text-white text-[10px] font-medium">
+                1/{post.images.length}
+              </div>
             )}
           </div>
-          <h3 className="text-xs font-semibold text-text-primary leading-tight line-clamp-1 mb-1">
-            {post.title}
-          </h3>
-          <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
-            <MapPin className="w-3 h-3 shrink-0" />
-            <span className="truncate">{post.university.shortName} · {post.area}</span>
-          </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <div className="flex items-center gap-2">
-              <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="flex items-center gap-0.5">
-                <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-[var(--like-red)] text-[var(--like-red)]' : 'text-text-tertiary')} />
-                <span className="text-[10px] text-text-tertiary">{formatCount(likeCount)}</span>
-              </button>
+
+          {/* Info */}
+          <div className="p-2.5">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-medium text-cn-purple bg-cn-purple/10 px-1.5 py-0.5 rounded">
+                {post.roomType}
+              </span>
+              {post.landlord.isVerified && (
+                <span className="text-[10px] text-cn-blue font-medium">✓ Verified</span>
+              )}
             </div>
-            <span className="text-[10px] text-text-tertiary">{post.distance}</span>
+            <h3 className="text-xs font-semibold text-text-primary leading-tight line-clamp-1 mb-1">
+              {post.title}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
+              <MapPin className="w-3 h-3 shrink-0" />
+              <span className="truncate">{post.university.shortName} · {post.area}</span>
+            </div>
+            <div className="flex items-center justify-between mt-1.5">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleLike();
+                  }}
+                  className="flex items-center gap-0.5 z-10"
+                >
+                  <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-[var(--like-red)] text-[var(--like-red)]' : 'text-text-tertiary')} />
+                  <span className="text-[10px] text-text-tertiary">{formatCount(likeCount)}</span>
+                </button>
+              </div>
+              <span className="text-[10px] text-text-tertiary">{post.distance}</span>
+            </div>
           </div>
-        </div>
-      </motion.article>
+        </motion.article>
+      </Link>
     );
   }
 
@@ -135,49 +149,55 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         damping: 30,
         delay: Math.min(index * 0.08, 0.4),
       }}
-      className="glass-solid rounded-2xl overflow-hidden"
+      className="glass-solid rounded-2xl overflow-hidden group hover:shadow-lg transition-shadow"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Avatar
-          src={post.landlord.avatar}
-          alt={post.landlord.name}
-          size="md"
-          isVerified={post.landlord.isVerified}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-text-primary truncate">
-              {post.landlord.name}
-            </span>
+      <Link href={`/listing/${post.id}`} className="block">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Avatar
+            src={post.landlord.avatar}
+            alt={post.landlord.name}
+            size="md"
+            isVerified={post.landlord.isVerified}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-text-primary truncate">
+                {post.landlord.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+              <MapPin className="w-3 h-3" />
+              <span>{post.university.shortName} · {post.area}</span>
+              <span>·</span>
+              <span>{timeAgo(post.createdAt)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-            <MapPin className="w-3 h-3" />
-            <span>{post.university.shortName} · {post.area}</span>
-            <span>·</span>
-            <span>{timeAgo(post.createdAt)}</span>
-          </div>
+          {/* Room type badge */}
+          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-cn-purple/10 text-cn-purple whitespace-nowrap">
+            {post.roomType}
+          </span>
         </div>
-        {/* Room type badge */}
-        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-cn-purple/10 text-cn-purple whitespace-nowrap">
-          {post.roomType}
-        </span>
-      </div>
 
-      {/* Image carousel */}
-      <ImageCarousel
-        images={post.images}
-        alt={post.title}
-        onDoubleTap={handleDoubleTap}
-      />
+        {/* Image carousel */}
+        <ImageCarousel
+          images={post.images}
+          alt={post.title}
+          onDoubleTap={handleDoubleTap}
+        />
+      </Link>
 
       {/* Action bar */}
       <div className="px-4 pt-3 pb-1 flex items-center gap-1">
         {/* Like */}
         <motion.button
           whileTap={{ scale: 0.75 }}
-          onClick={handleLike}
-          className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleLike();
+          }}
+          className="p-2 rounded-full hover:bg-surface-secondary transition-colors z-10"
         >
           <motion.div
             animate={{ scale: liked ? 1.2 : 1 }}
@@ -195,7 +215,11 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         {/* Comment */}
         <motion.button
           whileTap={{ scale: 0.85 }}
-          className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="p-2 rounded-full hover:bg-surface-secondary transition-colors z-10"
         >
           <MessageCircle className="w-6 h-6 text-text-secondary" />
         </motion.button>
@@ -203,7 +227,11 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         {/* Share */}
         <motion.button
           whileTap={{ scale: 0.85 }}
-          className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="p-2 rounded-full hover:bg-surface-secondary transition-colors z-10"
         >
           <Share2 className="w-5 h-5 text-text-secondary" />
         </motion.button>
@@ -213,8 +241,12 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         {/* Save */}
         <motion.button
           whileTap={{ scale: 0.75 }}
-          onClick={() => setSaved(!saved)}
-          className="p-2 rounded-full hover:bg-surface-secondary transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSaved(!saved);
+          }}
+          className="p-2 rounded-full hover:bg-surface-secondary transition-colors z-10"
         >
           <motion.div
             animate={{ scale: saved ? 1.2 : 1, rotate: saved ? -15 : 0 }}
@@ -230,63 +262,69 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         </motion.button>
       </div>
 
-      {/* Social stats */}
-      <div className="px-4 pb-1">
-        <span className="text-sm font-semibold text-text-primary">
-          {formatCount(likeCount)} likes
-        </span>
-      </div>
-
-      {/* Price + description */}
-      <div className="px-4 pb-3">
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-lg font-bold gradient-text">
-            {formatNaira(post.price)}
+      <Link href={`/listing/${post.id}`} className="block">
+        {/* Social stats */}
+        <div className="px-4 pb-1">
+          <span className="text-sm font-semibold text-text-primary">
+            {formatCount(likeCount)} likes
           </span>
-          <span className="text-xs text-text-tertiary">{post.priceLabel}</span>
         </div>
-        <p className="text-sm text-text-secondary leading-relaxed">
-          {expanded ? post.description : post.description.slice(0, 100)}
-          {post.description.length > 100 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-text-tertiary font-medium ml-1 hover:text-text-secondary"
-            >
-              {expanded ? ' less' : '… more'}
-            </button>
-          )}
-        </p>
 
-        {/* Amenity pills (show first 4) */}
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {post.amenities.slice(0, 4).map((amenity) => (
-            <span
-              key={amenity}
-              className="px-2 py-0.5 rounded-full text-xs bg-surface-secondary text-text-secondary"
-            >
-              {amenity}
+        {/* Price + description */}
+        <div className="px-4 pb-3">
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-lg font-bold gradient-text">
+              {formatNaira(post.price)}
             </span>
-          ))}
-          {post.amenities.length > 4 && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-surface-secondary text-text-tertiary">
-              +{post.amenities.length - 4} more
-            </span>
-          )}
+            <span className="text-xs text-text-tertiary">{post.priceLabel}</span>
+          </div>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            {expanded ? post.description : post.description.slice(0, 100)}
+            {post.description.length > 100 && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpanded(!expanded);
+                }}
+                className="text-text-tertiary font-medium ml-1 hover:text-text-secondary z-10"
+              >
+                {expanded ? ' less' : '… more'}
+              </button>
+            )}
+          </p>
+
+          {/* Amenity pills (show first 4) */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {post.amenities.slice(0, 4).map((amenity) => (
+              <span
+                key={amenity}
+                className="px-2 py-0.5 rounded-full text-xs bg-surface-secondary text-text-secondary"
+              >
+                {amenity}
+              </span>
+            ))}
+            {post.amenities.length > 4 && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-surface-secondary text-text-tertiary">
+                +{post.amenities.length - 4} more
+              </span>
+            )}
+          </div>
+
+          {/* Distance */}
+          <div className="flex items-center gap-1 mt-2 text-xs text-text-tertiary">
+            <MapPin className="w-3 h-3" />
+            <span>{post.distance}</span>
+          </div>
         </div>
 
-        {/* Distance */}
-        <div className="flex items-center gap-1 mt-2 text-xs text-text-tertiary">
-          <MapPin className="w-3 h-3" />
-          <span>{post.distance}</span>
+        {/* Comments preview */}
+        <div className="px-4 pb-3">
+          <div className="text-xs text-text-tertiary hover:text-text-secondary transition-colors">
+            View all {post.comments} comments
+          </div>
         </div>
-      </div>
-
-      {/* Comments preview */}
-      <div className="px-4 pb-3">
-        <button className="text-xs text-text-tertiary hover:text-text-secondary transition-colors">
-          View all {post.comments} comments
-        </button>
-      </div>
+      </Link>
     </motion.article>
   );
 }

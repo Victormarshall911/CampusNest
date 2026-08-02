@@ -75,7 +75,7 @@ function ListingPreview({
       className="absolute bottom-4 left-4 right-4 z-50"
     >
       <div className="glass-elevated rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-shadow">
-        <Link href={`/listings/${listing.id}`} className="flex gap-3 p-3">
+        <Link href={`/listing/${listing.id}`} className="flex gap-3 p-3">
           {/* Image */}
           <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0">
             <img
