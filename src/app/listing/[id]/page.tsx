@@ -238,6 +238,7 @@ export default function ListingDetailPage() {
         priceLabel={listing.priceLabel}
         landlordId={listing.landlord.id}
         landlordName={listing.landlord.name}
+        listingId={listing.id}
       />
     </main>
   );

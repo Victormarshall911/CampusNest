@@ -12,6 +12,7 @@ interface StickyBottomBarProps {
   priceLabel: string;
   landlordId: string;
   landlordName: string;
+  listingId: string;
 }
 
 export default function StickyBottomBar({
@@ -19,6 +20,7 @@ export default function StickyBottomBar({
   priceLabel,
   landlordId,
   landlordName,
+  listingId,
 }: StickyBottomBarProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -82,7 +84,7 @@ export default function StickyBottomBar({
                   Book Inspection
                 </button>
                 <Link
-                  href={`/messages/${landlordId}`}
+                  href={`/messages/${landlordId}?listingId=${listingId}`}
                   className="px-5 py-2.5 rounded-xl text-white gradient-bg text-xs font-bold shadow-lg shadow-cn-purple/20 hover:shadow-xl hover:brightness-110 transition-all active:scale-95 whitespace-nowrap"
                 >
                   Chat Landlord
