@@ -133,7 +133,7 @@ export default function CreatePostWizard({ currentUserId }: CreatePostWizardProp
   const isStepValid = useMemo(() => {
     switch (step) {
       case 1:
-        return media.length > 0;
+        return media.length > 0 && !media.some((m) => m.status === 'uploading');
       case 2:
         return title.trim().length > 3 && selectedUniId !== '' && area.trim().length > 2;
       case 3:
@@ -141,7 +141,7 @@ export default function CreatePostWizard({ currentUserId }: CreatePostWizardProp
       default:
         return true;
     }
-  }, [step, media.length, title, selectedUniId, area, rawPrice, description]);
+  }, [step, media, title, selectedUniId, area, rawPrice, description]);
 
   // ── Wizard Navigation ───────────────────────────────────────────────────────
   const handleNext = () => {
@@ -158,11 +158,13 @@ export default function CreatePostWizard({ currentUserId }: CreatePostWizardProp
 
   // ── Publish ────────────────────────────────────────────────────────────────
   const handlePublish = async () => {
-    if (publishing) return;
+    if (publishing || media.some((m) => m.status === 'uploading')) return;
     setPublishing(true);
 
     const priceNum = parseInt(rawPrice, 10);
-    const listingImages = media.map((m) => m.previewUrl);
+    const listingImages = media
+      .filter((m) => m.status === 'completed' && m.cloudinaryUrl)
+      .map((m) => m.cloudinaryUrl!);
 
     try {
       const res = await fetch('/api/listings', {
@@ -588,10 +590,19 @@ export default function CreatePostWizard({ currentUserId }: CreatePostWizardProp
           ) : (
             <button
               onClick={handlePublish}
-              disabled={publishing}
-              className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-white gradient-bg text-xs font-black shadow-lg shadow-cn-purple/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              disabled={publishing || media.some((m) => m.status === 'uploading')}
+              className={cn(
+                "flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-white text-xs font-black transition-all active:scale-95 cursor-pointer",
+                (publishing || media.some((m) => m.status === 'uploading'))
+                  ? "bg-surface-secondary text-text-tertiary cursor-not-allowed"
+                  : "gradient-bg shadow-lg shadow-cn-purple/20 hover:brightness-110"
+              )}
             >
-              {publishing ? 'Publishing...' : 'Publish Listing'}
+              {publishing
+                ? 'Publishing...'
+                : media.some((m) => m.status === 'uploading')
+                ? 'Uploading media...'
+                : 'Publish Listing'}
               <ArrowRight className="w-4 h-4" />
             </button>
           )}

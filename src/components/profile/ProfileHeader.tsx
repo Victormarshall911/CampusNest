@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import FilterSheet from '@/components/discover/FilterSheet';
+import AvatarUpload from '@/components/profile/AvatarUpload';
 import type { CampusUser } from '@/data/mockData';
 
 // ── Count-up helper — fires once on mount only ───────────────────────────────
@@ -183,12 +184,23 @@ export default function ProfileHeader({
               }
             >
               <div className="bg-surface-primary rounded-full p-0.5">
-                <Avatar
-                  src={user.avatar}
-                  alt={user.name}
-                  size="lg"
-                  className="!w-20 !h-20"
-                />
+                {isOwnProfile ? (
+                  <AvatarUpload
+                    userId={user.id}
+                    currentAvatar={user.avatar}
+                    userName={user.name}
+                    onUpdateSuccess={() => {
+                      window.location.reload();
+                    }}
+                  />
+                ) : (
+                  <Avatar
+                    src={user.avatar}
+                    alt={user.name}
+                    size="lg"
+                    className="!w-20 !h-20"
+                  />
+                )}
               </div>
             </div>
           </motion.div>

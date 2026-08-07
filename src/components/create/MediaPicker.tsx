@@ -1,20 +1,25 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UploadCloud, X, Play, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { UploadCloud, X, Play, ArrowLeft, ArrowRight, Image as ImageIcon, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { uploadMedia } from '@/lib/uploadMedia';
 
 export interface SelectedMedia {
   id: string;
   file: File;
   previewUrl: string;
   type: 'image' | 'video';
+  cloudinaryUrl?: string;
+  progress?: number;
+  status?: 'uploading' | 'completed' | 'failed';
+  error?: string;
 }
 
 interface MediaPickerProps {
   media: SelectedMedia[];
-  onChange: (media: SelectedMedia[]) => void;
+  onChange: (media: SelectedMedia[] | ((prev: SelectedMedia[]) => SelectedMedia[])) => void;
   error?: string;
   setError?: (err: string | undefined) => void;
 }
@@ -27,6 +32,16 @@ export default function MediaPicker({
 }: MediaPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  
+  // Track active XMLHttpRequest tasks to cancel them on delete
+  const xhrRefs = useRef<Record<string, XMLHttpRequest>>({});
+
+  // Abort all active uploads on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      Object.values(xhrRefs.current).forEach((xhr) => xhr.abort());
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -34,13 +49,54 @@ export default function MediaPicker({
     }
   };
 
+  const updateItem = (id: string, updater: (item: SelectedMedia) => SelectedMedia) => {
+    onChange((prev: SelectedMedia[]) =>
+      prev.map((m) => (m.id === id ? updater(m) : m))
+    );
+  };
+
+  const startUpload = (item: SelectedMedia) => {
+    uploadMedia(item.file, {
+      onProgress: (e) => {
+        updateItem(item.id, (m) => ({
+          ...m,
+          status: 'uploading',
+          progress: e.percentage,
+        }));
+      },
+      xhrRef: (xhr) => {
+        xhrRefs.current[item.id] = xhr;
+      },
+    })
+      .then((res) => {
+        updateItem(item.id, (m) => ({
+          ...m,
+          status: 'completed',
+          cloudinaryUrl: res.url,
+          progress: 100,
+        }));
+        delete xhrRefs.current[item.id];
+      })
+      .catch((err) => {
+        if (err.message !== 'Upload aborted.') {
+          updateItem(item.id, (m) => ({
+            ...m,
+            status: 'failed',
+            error: err.message || 'Upload failed',
+          }));
+        }
+        delete xhrRefs.current[item.id];
+      });
+  };
+
   const addFiles = (files: File[]) => {
     setError?.(undefined);
 
-    const newMedia: SelectedMedia[] = [...media];
+    const newItems: SelectedMedia[] = [];
 
     for (const file of files) {
-      if (newMedia.length >= 10) {
+      const currentLength = media.length + newItems.length;
+      if (currentLength >= 10) {
         setError?.('Maximum of 10 media files allowed.');
         break;
       }
@@ -53,15 +109,28 @@ export default function MediaPicker({
         continue;
       }
 
-      newMedia.push({
-        id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      const itemId = `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newItem: SelectedMedia = {
+        id: itemId,
         file,
         previewUrl: URL.createObjectURL(file),
         type: isImage ? 'image' : 'video',
+        status: 'uploading',
+        progress: 0,
+      };
+
+      newItems.push(newItem);
+    }
+
+    if (newItems.length > 0) {
+      onChange((prev: SelectedMedia[]) => [...prev, ...newItems]);
+      
+      // Kick off background uploads
+      newItems.forEach((item) => {
+        startUpload(item);
       });
     }
 
-    onChange(newMedia);
     if (inputRef.current) {
       inputRef.current.value = '';
     }
@@ -70,22 +139,41 @@ export default function MediaPicker({
   const handleRemove = (id: string, previewUrl: string) => {
     setError?.(undefined);
     URL.revokeObjectURL(previewUrl);
-    const updated = media.filter((m) => m.id !== id);
-    onChange(updated);
+
+    // Cancel active upload request if it exists
+    if (xhrRefs.current[id]) {
+      xhrRefs.current[id].abort();
+      delete xhrRefs.current[id];
+    }
+
+    onChange((prev: SelectedMedia[]) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleRetry = (id: string) => {
+    const item = media.find((m) => m.id === id);
+    if (!item) return;
+
+    updateItem(id, (m) => ({
+      ...m,
+      status: 'uploading',
+      progress: 0,
+      error: undefined,
+    }));
+
+    startUpload(item);
   };
 
   const handleMove = (index: number, direction: 'left' | 'right') => {
-    const newMedia = [...media];
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
-
     if (targetIndex < 0 || targetIndex >= media.length) return;
 
-    // Swap items
-    const temp = newMedia[index];
-    newMedia[index] = newMedia[targetIndex];
-    newMedia[targetIndex] = temp;
-
-    onChange(newMedia);
+    onChange((prev: SelectedMedia[]) => {
+      const newMedia = [...prev];
+      const temp = newMedia[index];
+      newMedia[index] = newMedia[targetIndex];
+      newMedia[targetIndex] = temp;
+      return newMedia;
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -174,6 +262,8 @@ export default function MediaPicker({
             <AnimatePresence mode="popLayout">
               {media.map((item, index) => {
                 const isCover = index === 0;
+                const isUploading = item.status === 'uploading';
+                const isFailed = item.status === 'failed';
 
                 return (
                   <motion.div
@@ -220,41 +310,82 @@ export default function MediaPicker({
                       </div>
                     )}
 
+                    {/* Progress overlay */}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex flex-col items-center justify-center text-white z-10">
+                        <div className="w-7 h-7 rounded-full border-2 border-t-cn-purple border-neutral-600 animate-spin mb-1" />
+                        <span className="text-[10px] font-black">{item.progress || 0}%</span>
+                      </div>
+                    )}
+
+                    {/* Failed retry overlay */}
+                    {isFailed && (
+                      <div className="absolute inset-0 bg-black/75 backdrop-blur-[1px] flex flex-col items-center justify-center p-2 text-center text-white z-10">
+                        <AlertCircle className="w-5 h-5 text-cn-coral mb-1 animate-bounce" />
+                        <span className="text-[9px] text-text-secondary leading-snug truncate max-w-full px-1 mb-1.5">
+                          {item.error || 'Upload failed'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRetry(item.id)}
+                          className="px-2 py-0.5 rounded bg-cn-purple hover:bg-cn-purple/80 text-[9px] font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                          Retry
+                        </button>
+                      </div>
+                    )}
+
                     {/* Actions Overlay (Visible on Hover/Focus) */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
-                      {/* Top actions */}
-                      <div className="flex justify-end">
+                    {!isUploading && !isFailed && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 z-10">
+                        {/* Top actions */}
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(item.id, item.previewUrl)}
+                            className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-coral hover:text-white transition-colors cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Reordering buttons */}
+                        <div className="flex justify-center gap-1.5">
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMove(index, 'left')}
+                              className="w-7 h-7 rounded-lg bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-purple hover:scale-105 transition-all cursor-pointer"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                            </button>
+                          )}
+                          {index < media.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMove(index, 'right')}
+                              className="w-7 h-7 rounded-lg bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-purple hover:scale-105 transition-all cursor-pointer"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* If failed or uploading, we still allow removing / cancelling the upload via the X button */}
+                    {(isUploading || isFailed) && (
+                      <div className="absolute top-1.5 right-1.5 z-20">
                         <button
                           type="button"
                           onClick={() => handleRemove(item.id, item.previewUrl)}
-                          className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-coral hover:text-white transition-colors cursor-pointer"
+                          className="w-6 h-6 rounded-full bg-black/80 flex items-center justify-center text-white hover:bg-cn-coral hover:text-white transition-colors cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-
-                      {/* Reordering buttons */}
-                      <div className="flex justify-center gap-1.5">
-                        {index > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleMove(index, 'left')}
-                            className="w-7 h-7 rounded-lg bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-purple hover:scale-105 transition-all cursor-pointer"
-                          >
-                            <ArrowLeft className="w-4 h-4" />
-                          </button>
-                        )}
-                        {index < media.length - 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleMove(index, 'right')}
-                            className="w-7 h-7 rounded-lg bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-cn-purple hover:scale-105 transition-all cursor-pointer"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </motion.div>
                 );
               })}
