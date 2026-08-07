@@ -2,32 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { CURRENT_USER_ID } from '@/data/mockData';
+import { useSession } from 'next-auth/react';
 import { mockChatStore, type Conversation } from '@/lib/mockChatStore';
 import ConversationList from '@/components/messages/ConversationList';
 
 export default function MessagesIndexPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    return mockChatStore.getConversations();
-  });
+  const { data: session, status } = useSession();
+  const currentUserId = (session?.user as any)?.id;
+
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Sync / subscribe to store changes
   useEffect(() => {
-    // Simulate initial mount delay for loading skeleton
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 600);
+    if (status === 'loading' || !currentUserId) return;
+
+    // Load initial list from database store
+    setConversations(mockChatStore.getConversations());
+    setLoading(false);
 
     const unsubscribe = mockChatStore.subscribe(() => {
       setConversations(mockChatStore.getConversations());
     });
 
     return () => {
-      clearTimeout(timer);
       unsubscribe();
     };
-  }, []);
+  }, [status, currentUserId]);
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-24">
@@ -41,7 +42,7 @@ export default function MessagesIndexPage() {
             </h1>
           </div>
           <span className="text-[10px] text-text-tertiary font-bold uppercase tracking-wider">
-            Mock Session
+            Live Chat Compound
           </span>
         </div>
       </div>
@@ -63,7 +64,7 @@ export default function MessagesIndexPage() {
         ) : (
           <ConversationList
             conversations={conversations}
-            currentUserId={CURRENT_USER_ID}
+            currentUserId={currentUserId || ''}
           />
         )}
       </div>

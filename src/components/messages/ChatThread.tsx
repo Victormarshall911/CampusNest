@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, BadgeCheck, Check, CheckCheck, MapPin } from 'lucide-react';
 import { timeAgo, formatNaira, cn } from '@/lib/utils';
-import { getUserById } from '@/lib/getUserById';
 import { mockFeed, type ListingPost } from '@/data/mockData';
 import { mockChatStore, type Message } from '@/lib/mockChatStore';
 import Avatar from '@/components/ui/Avatar';
@@ -51,8 +50,7 @@ export default function ChatThread({
 
   // Find the other participant in the conversation
   const conv = mockChatStore.getConversations().find((c) => c.id === conversationId);
-  const otherId = conv?.participantIds.find((id) => id !== currentUserId) || '';
-  const otherUser = getUserById(otherId);
+  const otherUser = conv?.otherUser;
 
   // Find listing details if linked
   let listing: ListingPost | undefined;

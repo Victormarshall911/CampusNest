@@ -1,9 +1,15 @@
-import { mockUsers, type CampusUser } from '@/data/mockData';
+import type { CampusUser } from '@/data/mockData';
 
 /**
- * Pure lookup — finds a user by id from mockUsers.
- * Drop-in swap for a real API fetch later.
+ * Client-safe helper that fetches user profile details from the database API.
  */
-export function getUserById(id: string): CampusUser | undefined {
-  return mockUsers.find((u) => u.id === id);
+export async function getUserById(id: string): Promise<CampusUser | undefined> {
+  try {
+    const res = await fetch(`/api/users/${id}`);
+    if (!res.ok) return undefined;
+    return await res.json();
+  } catch (error) {
+    console.error('Error in getUserById:', error);
+    return undefined;
+  }
 }

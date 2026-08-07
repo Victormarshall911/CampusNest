@@ -35,16 +35,16 @@ export default function ListingDetailPage() {
   const [listing, setListing] = useState<ListingPost | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simulate lookup fetch
+  // Async lookup fetch from Postgres API
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const data = getListingById(id);
+    const fetchListing = async () => {
+      const data = await getListingById(id);
       if (data) {
         setListing(data);
       }
       setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    };
+    fetchListing();
   }, [id]);
 
   // Loading Skeleton State

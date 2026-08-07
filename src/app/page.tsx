@@ -3,48 +3,46 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw, Sparkles } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import FeedHeader from '@/components/feed/FeedHeader';
 import FeedCard from '@/components/feed/FeedCard';
 import { SkeletonFeed } from '@/components/ui/SkeletonLoader';
-import { mockFeed, type FeedPost } from '@/data/mockData';
-import { mockPostStore } from '@/lib/mockPostStore';
+import { type FeedPost } from '@/data/mockData';
 
 const POSTS_PER_PAGE = 8;
 
 export default function HomePage() {
+  const [allFeedPosts, setAllFeedPosts] = useState<FeedPost[]>([]);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
 
-  // Setup local data source
-  const getFeedData = useCallback(() => {
-    return mockPostStore.getMergedFeed(mockFeed);
+  // Load feed from Postgres API
+  const fetchFeed = useCallback(async (isRefresh = false) => {
+    try {
+      const res = await fetch('/api/feed');
+      if (res.ok) {
+        const data = await res.json();
+        setAllFeedPosts(data);
+        setPosts(data.slice(0, POSTS_PER_PAGE));
+        setPage(1);
+        setHasMore(data.length > POSTS_PER_PAGE);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+      if (isRefresh) setRefreshing(false);
+    }
   }, []);
 
-  // Initial load and subscribe to store changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const currentFeed = getFeedData();
-      setPosts(currentFeed.slice(0, POSTS_PER_PAGE));
-      setPage(1);
-      setLoading(false);
-    }, 1200);
-
-    const unsubscribe = mockPostStore.subscribe(() => {
-      const currentFeed = getFeedData();
-      const pageCount = Math.max(1, page);
-      setPosts(currentFeed.slice(0, pageCount * POSTS_PER_PAGE));
-    });
-
-    return () => {
-      clearTimeout(timer);
-      unsubscribe();
-    };
-  }, [getFeedData, page]);
+    fetchFeed();
+  }, [fetchFeed]);
 
   // Infinite scroll — load more posts
   const loadMore = useCallback(() => {
@@ -52,20 +50,21 @@ export default function HomePage() {
     setLoadingMore(true);
 
     setTimeout(() => {
-      const currentFeed = getFeedData();
+      const nextPageIndex = page + 1;
       const start = page * POSTS_PER_PAGE;
       const end = start + POSTS_PER_PAGE;
-      const newPosts = currentFeed.slice(start, end);
+      const newPosts = allFeedPosts.slice(start, end);
 
       if (newPosts.length === 0) {
         setHasMore(false);
       } else {
         setPosts((prev) => [...prev, ...newPosts]);
-        setPage((prev) => prev + 1);
+        setPage(nextPageIndex);
+        setHasMore(allFeedPosts.length > end);
       }
       setLoadingMore(false);
-    }, 800);
-  }, [page, loadingMore, hasMore, getFeedData]);
+    }, 850);
+  }, [page, loadingMore, hasMore, allFeedPosts]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -88,19 +87,8 @@ export default function HomePage() {
   // Pull to refresh
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => {
-      const currentFeed = getFeedData();
-      // Keep session-created posts at top, shuffle static mock posts for fresh feel
-      const sessionPosts = currentFeed.filter((p) => p.id.startsWith('session-'));
-      const staticPosts = currentFeed.filter((p) => !p.id.startsWith('session-'));
-      const shuffledStatic = [...staticPosts].sort(() => Math.random() - 0.5);
-      const shuffled = [...sessionPosts, ...shuffledStatic];
-      setPosts(shuffled.slice(0, POSTS_PER_PAGE));
-      setPage(1);
-      setHasMore(true);
-      setRefreshing(false);
-    }, 1500);
-  }, [getFeedData]);
+    fetchFeed(true);
+  }, [fetchFeed]);
 
   return (
     <main className="min-h-screen">

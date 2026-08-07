@@ -1,28 +1,43 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Home, Sparkles, Star, PlusSquare, ArrowRight, UserPlus, Info } from 'lucide-react';
-import { getUserById } from '@/lib/getUserById';
-import { CURRENT_USER_ID } from '@/data/mockData';
+import { useSession } from 'next-auth/react';
+import { type CampusUser } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import CreatePostWizard from '@/components/create/CreatePostWizard';
 import QuickPostSheet from '@/components/create/QuickPostSheet';
 
 export default function CreatePostEntryPage() {
-  const currentUser = useMemo(() => {
-    return getUserById(CURRENT_USER_ID) || {
-      id: CURRENT_USER_ID,
-      name: 'Chioma Nwosu',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
-      role: 'student' as const,
-      isVerified: true,
-      joinedDate: 'Joined today',
-      universityShortName: 'UNILAG',
-    };
-  }, []);
+  const { data: session, status } = useSession();
+  const currentUserId = (session?.user as any)?.id;
 
-  const isLandlord = currentUser.role === 'landlord';
+  const [currentUser, setCurrentUser] = useState<CampusUser | null>(null);
+
+  // Fetch full user profile details from Postgres API on session load
+  useEffect(() => {
+    if (status === 'loading' || !currentUserId) return;
+    
+    fetch(`/api/users/${currentUserId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setCurrentUser(data);
+        }
+      })
+      .catch((err) => console.error(err));
+  }, [currentUserId, status]);
+
+  const isLandlord = currentUser?.role === 'landlord';
+
+  if (status === 'loading' || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="skeleton h-12 w-12 rounded-full animate-spin border-4 border-cn-purple border-t-transparent" />
+      </div>
+    );
+  }
 
   // Toggle state to open wizard vs main choice grid
   const [showWizard, setShowWizard] = useState(false);

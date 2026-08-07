@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, CheckCircle, Plus, X, Search } from 'lucide-react';
 import { formatNaira, cn } from '@/lib/utils';
-import { universities, mockFeed, type ListingPost, type CampusUser } from '@/data/mockData';
-import { mockPostStore } from '@/lib/mockPostStore';
+import { universities, type ListingPost, type CampusUser } from '@/data/mockData';
 import FilterSheet from '@/components/discover/FilterSheet';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 
@@ -43,21 +42,28 @@ export default function QuickPostSheet({
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  // Listing search matching listings in mockFeed + mockPostStore
-  const allListings = useMemo(() => {
-    const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
-    const sessionListings = mockPostStore.getListings();
-    return [...sessionListings, ...staticListings];
-  }, []);
+  const [dbListings, setDbListings] = useState<ListingPost[]>([]);
+
+  // Fetch listings on sheet open
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/listings')
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDbListings(data);
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [isOpen]);
 
   const filteredListings = useMemo(() => {
     if (!listingSearch.trim()) return [];
-    return allListings.filter(
+    return dbListings.filter(
       (l) =>
         l.title.toLowerCase().includes(listingSearch.toLowerCase()) ||
         l.area.toLowerCase().includes(listingSearch.toLowerCase())
     );
-  }, [listingSearch, allListings]);
+  }, [listingSearch, dbListings]);
 
   // University matching
   const filteredUnis = useMemo(() => {
@@ -105,88 +111,81 @@ export default function QuickPostSheet({
   }, [activeTab, selectedListing, comment, selectedUniId, budget, bio]);
 
   // Handle post submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isFormValid) return;
 
-    if (activeTab === 'review') {
-      const newReview = {
-        id: `session-review-${Date.now()}`,
-        type: 'review' as const,
-        author: {
-          name: currentUser.name,
-          avatar: currentUser.avatar,
-          university: currentUser.universityShortName || 'Student',
-        },
-        landlordName: selectedListing!.landlord.name,
-        area: selectedListing!.area,
-        university: selectedListing!.university,
-        rating: rating,
-        title: `Verified review for ${selectedListing!.title}`,
-        content: comment,
-        images: [],
-        likes: 0,
-        comments: 0,
-        createdAt: new Date().toISOString(),
-        isLiked: false,
-        isVerifiedTenant: true,
-      };
+    try {
+      if (activeTab === 'review') {
+        // 1. Submit review to listing reviews database
+        const listingReviewRes = await fetch(`/api/listings/${selectedListing!.id}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating: rating,
+            comment: comment,
+            verifiedTenant: true,
+          }),
+        });
 
-      // Also append the review directly into the specific listing object so it shows up in Listing Detail
-      const detailedReview = {
-        id: `session-review-list-${Date.now()}`,
-        authorName: currentUser.name,
-        authorAvatar: currentUser.avatar,
-        verifiedTenant: true,
-        rating: rating,
-        comment: comment,
-        date: new Date().toISOString(),
-      };
-      selectedListing!.reviews.unshift(detailedReview);
+        if (!listingReviewRes.ok) {
+          throw new Error('Failed to submit listing review');
+        }
 
-      mockPostStore.addReview(newReview);
-      setToastMsg('Review posted successfully!');
-    } else {
-      const budgetNum = parseInt(budget.replace(/[^0-9]/g, ''), 10);
-      const newRoommate = {
-        id: `session-roommate-${Date.now()}`,
-        type: 'roommate-request' as const,
-        author: {
-          name: currentUser.name,
-          avatar: currentUser.avatar,
-          university: currentUser.universityShortName || 'Student',
-          level: currentUser.level || 'Student',
-          department: currentUser.department || 'Academic',
-        },
-        university: selectedUni || universities[0],
-        area: selectedUni?.areas[0] || 'Campus Area',
-        budget: budgetNum,
-        title: `Roommate wanted near ${selectedUni?.shortName || 'Campus'}`,
-        description: bio,
-        preferences: preferences,
-        likes: 0,
-        comments: 0,
-        createdAt: new Date().toISOString(),
-        isLiked: false,
-      };
+        // 2. Submit general feed post review
+        const reviewPostRes = await fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'review',
+            text: comment,
+            rating: rating,
+            landlordName: selectedListing!.landlord.name,
+            area: selectedListing!.area,
+            universityId: selectedListing!.university.id,
+            title: `Verified review for ${selectedListing!.title}`,
+          }),
+        });
 
-      mockPostStore.addRoommate(newRoommate);
-      setToastMsg('Roommate request posted!');
+        if (!reviewPostRes.ok) {
+          throw new Error('Failed to submit review feed post');
+        }
+
+        setToastMsg('Review posted successfully!');
+      } else {
+        const budgetNum = parseInt(budget.replace(/[^0-9]/g, ''), 10);
+
+        // Submit roommate request to posts database
+        const roommateRes = await fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'roommate-request',
+            text: bio,
+            title: `Roommate wanted near ${selectedUni?.shortName || 'Campus'}`,
+            universityId: selectedUniId,
+            area: selectedUni?.areas[0] || 'Campus Area',
+            budget: budgetNum,
+          }),
+        });
+
+        if (!roommateRes.ok) {
+          throw new Error('Failed to submit roommate request');
+        }
+
+        setToastMsg('Roommate request posted!');
+      }
+
+      // Show toast and close sheet
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        onClose();
+        window.location.reload();
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Something went wrong publishing your post');
     }
-
-    // Show toast and close sheet
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-      onClose();
-      // Reset forms
-      setListingSearch('');
-      setSelectedListing(null);
-      setComment('');
-      setUniSearch('');
-      setSelectedUniId('');
-      setBudget('');
-      setBio('');
-    }, 1500);
   };
 
   const handleClear = () => {

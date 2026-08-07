@@ -93,6 +93,39 @@ export default function ProfileHeader({
   reviewCount,
 }: ProfileHeaderProps) {
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [name, setName] = useState(user.name);
+  const [bio, setBio] = useState(user.bio || '');
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const handleUpdate = async () => {
+    if (!name.trim()) {
+      setUpdateError('Name cannot be empty');
+      return;
+    }
+
+    setUpdating(true);
+    setUpdateError(null);
+
+    try {
+      const res = await fetch(`/api/users/${user.id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), bio: bio.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update profile settings');
+      }
+
+      setEditSheetOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      setUpdateError(err.message || 'Something went wrong');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const isStudent = user.role === 'student';
 
@@ -250,22 +283,51 @@ export default function ProfileHeader({
         </motion.div>
       </div>
 
-      {/* ── Edit Profile sheet (stub) ───────────────────────────── */}
+      {/* ── Edit Profile sheet ───────────────────────────── */}
       <FilterSheet
         isOpen={editSheetOpen}
         onClose={() => setEditSheetOpen(false)}
         title="Edit Profile"
-        onApply={() => setEditSheetOpen(false)}
-        onClear={() => {}}
+        onApply={handleUpdate}
+        onClear={() => {
+          setName(user.name);
+          setBio(user.bio || '');
+        }}
       >
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-surface-secondary flex items-center justify-center mb-4">
-            <PencilLine className="w-8 h-8 text-cn-purple" />
+        <div className="space-y-4 py-2 px-1">
+          {updateError && (
+            <div className="p-3.5 rounded-xl bg-cn-coral/10 border border-cn-coral/25 text-xs text-cn-coral">
+              {updateError}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">
+              Display Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              disabled={updating}
+              className="w-full px-4 py-2.5 rounded-xl glass-solid border border-[var(--border-light)] text-xs font-semibold outline-none focus:border-cn-purple/35 focus:ring-2 focus:ring-cn-purple/10 transition-all bg-[var(--background)] text-text-primary"
+            />
           </div>
-          <h3 className="text-sm font-bold text-text-primary mb-1">Profile editing</h3>
-          <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
-            Full profile editing — name, bio, avatar, university — is coming in Phase 5.
-          </p>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">
+              Bio / Description
+            </label>
+            <textarea
+              rows={3}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Tell us about yourself..."
+              disabled={updating}
+              className="w-full px-4 py-2.5 rounded-xl glass-solid border border-[var(--border-light)] text-xs font-semibold outline-none focus:border-cn-purple/35 focus:ring-2 focus:ring-cn-purple/10 transition-all bg-[var(--background)] text-text-primary resize-none"
+            />
+          </div>
         </div>
       </FilterSheet>
     </>

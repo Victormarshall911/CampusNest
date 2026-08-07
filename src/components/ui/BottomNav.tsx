@@ -6,8 +6,8 @@ import { motion } from 'motion/react';
 import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { mockChatStore } from '@/lib/mockChatStore';
-import { CURRENT_USER_ID } from '@/data/mockData';
 
 const tabs = [
   { id: 'home', label: 'Home', icon: Home, href: '/' },
@@ -19,17 +19,25 @@ const tabs = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState<number>(() => {
-    return mockChatStore.getUnreadCount(CURRENT_USER_ID);
-  });
+  const { data: session, status } = useSession();
+  const currentUserId = (session?.user as any)?.id;
+
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
+    if (status === 'loading' || !currentUserId) {
+      setUnreadCount(0);
+      return;
+    }
+
+    setUnreadCount(mockChatStore.getUnreadCount(currentUserId));
+
     const unsubscribe = mockChatStore.subscribe(() => {
-      setUnreadCount(mockChatStore.getUnreadCount(CURRENT_USER_ID));
+      setUnreadCount(mockChatStore.getUnreadCount(currentUserId));
     });
 
     return unsubscribe;
-  }, []);
+  }, [status, currentUserId]);
 
   return (
     <>

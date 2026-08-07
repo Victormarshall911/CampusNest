@@ -1,0 +1,200 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NextAuth models
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  STUDENT
+  LANDLORD
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  emailVerified DateTime?
+  avatarUrl     String?
+  role          Role      @default(STUDENT)
+  verified      Boolean   @default(false)
+  universityId  String?
+  university    University? @relation(fields: [universityId], references: [id])
+  bio           String?
+  responseTime  String?   // landlord only, e.g. "within 1 hour"
+  joinedDate    String?   // e.g. "June 2024"
+  createdAt     DateTime  @default(now())
+
+  accounts      Account[]
+  sessions      Session[]
+  
+  listings      Listing[]         @relation("LandlordListings")
+  savedListings SavedListing[]
+  posts         Post[]            @relation("AuthorPosts")
+  reviews       Review[]          @relation("AuthorReviews")
+  sentMessages  Message[]         @relation("SentMessages")
+  
+  conversationsA Conversation[]   @relation("ParticipantA")
+  conversationsB Conversation[]   @relation("ParticipantB")
+}
+
+model University {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String
+  state       String
+  areas       String[]
+  lat         Float
+  lng         Float
+  listings    Listing[]
+  users       User[]
+  posts       Post[]
+}
+
+model Listing {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  price         Int       // store in Naira
+  priceLabel    String    // e.g. "/year"
+  roomType      String
+  lat           Float
+  lng           Float
+  area          String
+  distance      String
+  distanceKm    Float
+  amenities     String[]
+  houseRules    String[]
+  images        String[]
+  videoUrl      String?
+  
+  landlordId    String
+  landlord      User      @relation("LandlordListings", fields: [landlordId], references: [id])
+  
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id])
+  
+  reviews       Review[]
+  savedBy       SavedListing[]
+  
+  createdAt     DateTime  @default(now())
+}
+
+model SavedListing {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId  String
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  savedAt    DateTime @default(now())
+
+  @@unique([userId, listingId])
+}
+
+enum PostType {
+  ROOMMATE_REQUEST
+  REVIEW
+}
+
+model Post {
+  id           String   @id @default(cuid())
+  type         PostType
+  authorId     String
+  author       User     @relation("AuthorPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  text         String   // content
+  title        String?
+  images       String[]
+  
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id])
+  
+  area         String?
+  budget       Int?
+  rating       Int?
+  landlordName String?
+  
+  createdAt    DateTime @default(now())
+}
+
+model Review {
+  id             String   @id @default(cuid())
+  listingId      String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User     @relation("AuthorReviews", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  rating         Int
+  comment        String
+  verifiedTenant Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model Conversation {
+  id                  String    @id @default(cuid())
+  participantAId      String
+  participantA        User      @relation("ParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantBId      String
+  participantB        User      @relation("ParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+  listingId           String?
+  messages            Message[]
+  lastMessageAt       DateTime  @default(now())
+  typingParticipantId String?
+
+  @@unique([participantAId, participantBId, listingId])
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  text           String
+  status         MessageStatus @default(SENT)
+  createdAt      DateTime     @default(now())
+}

@@ -5,18 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { UserX, Compass } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import type { CampusUser } from '@/data/mockData';
-import { CURRENT_USER_ID } from '@/data/mockData';
-import { getUserById } from '@/lib/getUserById';
-import {
-  getSavedListings,
-  getUserPosts,
-  getUserActiveListings,
-  getAggregateReviews,
-  getAggregateRating,
-} from '@/lib/getUserContent';
-
-import { mockPostStore } from '@/lib/mockPostStore';
 
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileTabs, { TabContent } from '@/components/profile/ProfileTabs';
@@ -107,30 +97,28 @@ function UserNotFound() {
 export default function ProfilePage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: session } = useSession();
 
-  const [user, setUser] = useState<CampusUser | null | undefined>(undefined);
+  const [user, setUser] = useState<any>(undefined);
   const [activeTab, setActiveTab] = useState('');
-  const [tick, setTick] = useState(0);
 
-  // Sync / subscribe to store changes
+  // Fetch profile details and collections from Postgres API
   useEffect(() => {
-    const unsubscribe = mockPostStore.subscribe(() => {
-      setTick((t) => t + 1);
-    });
-    return unsubscribe;
-  }, []);
-
-  // Simulate async lookup
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const found = getUserById(id);
-      setUser(found ?? null);
-      // Set default tab based on role
-      if (found) {
-        setActiveTab(found.role === 'student' ? 'saved' : 'listings');
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/users/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+          setActiveTab(data.role === 'student' ? 'saved' : 'listings');
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setUser(null);
       }
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    fetchProfile();
   }, [id]);
 
   // Loading
@@ -139,15 +127,15 @@ export default function ProfilePage() {
   // Not found
   if (user === null) return <UserNotFound />;
 
-  const isOwnProfile = id === CURRENT_USER_ID;
+  const currentUserId = (session?.user as any)?.id;
+  const isOwnProfile = id === currentUserId;
   const isStudent = user.role === 'student';
 
-  // Pre-compute content & stats
-  const savedListings = getSavedListings(id);
-  const userPosts = getUserPosts(id);
-  const activeListings = getUserActiveListings(id);
-  const reviews = getAggregateReviews(id);
-  const { avg: avgRating, count: reviewCount } = getAggregateRating(id);
+  const savedListings = user.savedListings || [];
+  const userPosts = user.userPosts || [];
+  const activeListings = user.activeListings || [];
+  const reviews = user.aggregateReviews || [];
+  const { avg: avgRating, count: reviewCount } = user.ratingDetails || { avg: 0, count: 0 };
 
   const tabs = isStudent
     ? [
@@ -197,8 +185,6 @@ export default function ProfilePage() {
           )}
         </TabContent>
       </div>
-      {/* Hidden tracker to trigger re-renders on store updates */}
-      <span className="hidden" aria-hidden="true">{tick}</span>
     </main>
   );
 }

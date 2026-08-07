@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { MessageSquare, ArrowLeft } from 'lucide-react';
-import { CURRENT_USER_ID, mockUsers } from '@/data/mockData';
+import { useSession } from 'next-auth/react';
 import { mockChatStore, type Message, type Conversation } from '@/lib/mockChatStore';
 import ChatThread from '@/components/messages/ChatThread';
 import MessageInput from '@/components/messages/MessageInput';
@@ -81,30 +81,55 @@ function ChatRoomInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   const id = params.id as string;
   const listingId = searchParams.get('listingId') || undefined;
 
-  // Use lazy state initialization to avoid set-state-in-effect
-  const [conversation, setConversation] = useState<Conversation | null | undefined>(() => {
-    return mockChatStore.getConversations().find((c) => c.id === id) || null;
-  });
+  const currentUserId = (session?.user as any)?.id;
 
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (!conversation) return [];
-    return mockChatStore.getMessages(conversation.id);
-  });
+  const [conversation, setConversation] = useState<Conversation | null | undefined>(undefined);
+  const [messages, setMessages] = useState<Message[]>([]);
 
-  // Handle user ID paths — auto create and redirect if needed
+  // Fetch conversations and check if active ID matches an existing room
   useEffect(() => {
-    if (conversation === null) {
-      const userExists = mockUsers.some((u) => u.id === id);
-      if (userExists && id !== CURRENT_USER_ID) {
-        const newConvId = mockChatStore.getOrCreateConversation(CURRENT_USER_ID, id, listingId);
-        router.replace(`/messages/${newConvId}`);
+    if (status === 'loading' || !currentUserId) return;
+
+    const findOrCreateRoom = async () => {
+      try {
+        const res = await fetch('/api/conversations');
+        if (res.ok) {
+          const rooms: Conversation[] = await res.json();
+          const activeRoom = rooms.find((r) => r.id === id);
+
+          if (activeRoom) {
+            setConversation(activeRoom);
+            mockChatStore.setActiveConversation(activeRoom.id);
+          } else {
+            // It could be a User ID path: call POST to api/conversations to check/upsert room
+            const upsertRes = await fetch('/api/conversations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipientId: id, listingId }),
+            });
+            if (upsertRes.ok) {
+              const upsertData = await upsertRes.json();
+              router.replace(`/messages/${upsertData.conversationId}`);
+            } else {
+              setConversation(null);
+            }
+          }
+        } else {
+          setConversation(null);
+        }
+      } catch (err) {
+        console.error(err);
+        setConversation(null);
       }
-    }
-  }, [id, conversation, listingId, router]);
+    };
+
+    findOrCreateRoom();
+  }, [id, currentUserId, status, listingId, router]);
 
   // Subscribe to updates when conversation is loaded
   useEffect(() => {
@@ -121,18 +146,15 @@ function ChatRoomInner() {
     return unsubscribe;
   }, [conversation]);
 
-  if (conversation === undefined) return <ChatSkeleton />;
+  if (status === 'loading' || conversation === undefined) return <ChatSkeleton />;
   if (conversation === null) {
-    // If it's a valid user ID, the redirection is happening, so show skeleton
-    const userExists = mockUsers.some((u) => u.id === id);
-    if (userExists && id !== CURRENT_USER_ID) {
-      return <ChatSkeleton />;
-    }
     return <ConversationNotFound />;
   }
 
   const handleSendMessage = (text: string) => {
-    mockChatStore.sendMessage(conversation.id, CURRENT_USER_ID, text);
+    if (currentUserId) {
+      mockChatStore.sendMessage(conversation.id, currentUserId, text);
+    }
   };
 
   return (
@@ -142,7 +164,7 @@ function ChatRoomInner() {
         <ChatThread
           conversationId={conversation.id}
           messages={messages}
-          currentUserId={CURRENT_USER_ID}
+          currentUserId={currentUserId}
           isTyping={conversation.typingParticipantId !== null}
         />
       </div>

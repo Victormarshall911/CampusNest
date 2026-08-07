@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, BadgeCheck } from 'lucide-react';
 import { timeAgo, formatNaira, cn } from '@/lib/utils';
-import { getUserById } from '@/lib/getUserById';
 import { mockFeed, type ListingPost } from '@/data/mockData';
 import { mockChatStore, type Conversation } from '@/lib/mockChatStore';
 import Avatar from '@/components/ui/Avatar';
@@ -50,8 +49,7 @@ export default function ConversationList({
       <AnimatePresence mode="popLayout">
         {conversations.map((c, index) => {
           // Find the other participant in the conversation
-          const otherId = c.participantIds.find((id) => id !== currentUserId) || '';
-          const otherUser = getUserById(otherId);
+          const otherUser = c.otherUser;
 
           // Get the last message of this conversation
           const convMessages = mockChatStore.getMessages(c.id);
@@ -121,7 +119,7 @@ export default function ConversationList({
                         isUnread ? 'text-text-primary font-bold' : 'text-text-secondary font-medium'
                       )}
                     >
-                      {c.typingParticipantId === otherId ? (
+                      {c.typingParticipantId === otherUser?.id ? (
                         <span className="text-cn-purple font-semibold italic animate-pulse">
                           Typing...
                         </span>

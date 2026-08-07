@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { formatNaira, cn } from '@/lib/utils';
 import { universities } from '@/data/mockData';
-import { mockPostStore } from '@/lib/mockPostStore';
 import MediaPicker, { type SelectedMedia } from '@/components/create/MediaPicker';
 import LocationMap from '@/components/listing/LocationMap';
 
@@ -162,57 +161,48 @@ export default function CreatePostWizard({ currentUserId }: CreatePostWizardProp
     if (publishing) return;
     setPublishing(true);
 
-    // Mock API upload step with local previews
-    const listingId = `session-listing-${Date.now()}`;
     const priceNum = parseInt(rawPrice, 10);
+    const listingImages = media.map((m) => m.previewUrl);
 
-    const newListing = {
-      id: listingId,
-      type: 'listing' as const,
-      landlord: {
-        id: currentUserId,
-        name: 'Chioma Nwosu', // Default own landlord name
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
-        isVerified: true,
-        rating: 5.0,
-        totalListings: 1,
-        responseTime: 'Usually responds within 10min',
-        joinedDate: 'Joined today',
-      },
-      university: selectedUni || universities[0],
-      area: area,
-      title: title,
-      description: description,
-      price: priceNum,
-      priceLabel: priceLabel,
-      roomType: roomType,
-      images: media.map((m) => m.previewUrl), // Using mock local object URLs
-      videoUrl: media.find((m) => m.type === 'video')?.previewUrl,
-      amenities: selectedAmenities,
-      likes: 0,
-      comments: 0,
-      saves: 0,
-      isLiked: false,
-      isSaved: false,
-      createdAt: new Date().toISOString(),
-      distance: '0.5km from campus',
-      distanceKm: 0.5,
-      lat: lat || 6.5158,
-      lng: lng || 3.3898,
-      houseRules: houseRules,
-      reviews: [],
-    };
+    try {
+      const res = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          price: priceNum,
+          priceLabel,
+          roomType,
+          lat: Number(lat) || undefined,
+          lng: Number(lng) || undefined,
+          area,
+          amenities: selectedAmenities,
+          houseRules,
+          images: listingImages.length > 0 ? listingImages : undefined,
+          universityId: selectedUni?.id || 'unilag',
+        }),
+      });
 
-    setTimeout(() => {
-      mockPostStore.addListing(newListing);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to publish listing');
+      }
+
+      const data = await res.json();
       setPublishing(false);
       setShowToast(true);
 
       setTimeout(() => {
         setShowToast(false);
-        router.push(`/listing/${listingId}`);
+        router.push(`/listing/${data.id}`);
+        router.refresh();
       }, 2000);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Something went wrong publishing listing');
+      setPublishing(false);
+    }
   };
 
   return (

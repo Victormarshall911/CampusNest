@@ -9,34 +9,30 @@ import ResultsToggle from '@/components/discover/ResultsToggle';
 import ResultsGrid from '@/components/discover/ResultsGrid';
 import ResultsMap from '@/components/discover/ResultsMap';
 import { filterListings, defaultFilters, type Filters } from '@/lib/filterListings';
-import { mockFeed, type ListingPost } from '@/data/mockData';
-import { mockPostStore } from '@/lib/mockPostStore';
+import { type ListingPost } from '@/data/mockData';
 
 export default function DiscoverPage() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [view, setView] = useState<'grid' | 'map'>('grid');
   const [loading, setLoading] = useState(true);
-  const [listings, setListings] = useState<ListingPost[]>(() => {
-    const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
-    const sessionListings = mockPostStore.getListings();
-    return [...sessionListings, ...staticListings];
-  });
+  const [listings, setListings] = useState<ListingPost[]>([]);
 
-  // Sync listings on mount + store changes
+  // Fetch listings from PostgreSQL API
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-
-    const unsubscribe = mockPostStore.subscribe(() => {
-      // Re-query latest listing sources
-      const staticListings = mockFeed.filter((p): p is ListingPost => p.type === 'listing');
-      const sessionListings = mockPostStore.getListings();
-      setListings([...sessionListings, ...staticListings]);
-    });
-
-    return () => {
-      clearTimeout(timer);
-      unsubscribe();
+    const fetchListings = async () => {
+      try {
+        const res = await fetch('/api/listings');
+        if (res.ok) {
+          const data = await res.json();
+          setListings(data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchListings();
   }, []);
 
   // Filter results — instant since it's all client-side mock data
