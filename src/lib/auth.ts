@@ -87,12 +87,14 @@ export const authOptions: NextAuthOptions = {
         token.role = u.role;
         token.verified = u.verified;
         token.universityId = u.universityId;
+        token.avatarUrl = u.avatarUrl || u.avatar;
       }
       
-      // Support dynamic session updates (for role selection page redirect)
+      // Support dynamic session updates (for role selection page & avatar updates)
       if (trigger === 'update' && session) {
-        token.role = session.role;
-        token.universityId = session.universityId;
+        if (session.role) token.role = session.role;
+        if (session.universityId) token.universityId = session.universityId;
+        if (session.avatarUrl) token.avatarUrl = session.avatarUrl;
       }
 
       return token;
@@ -104,6 +106,7 @@ export const authOptions: NextAuthOptions = {
         u.role = token.role;
         u.verified = token.verified;
         u.universityId = token.universityId;
+        u.avatarUrl = token.avatarUrl;
       }
       return session;
     },
