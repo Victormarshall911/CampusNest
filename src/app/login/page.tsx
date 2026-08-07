@@ -73,10 +73,16 @@ export default function LoginPage() {
         throw new Error(res.error || 'Invalid verification code');
       }
 
-      // Check if user has role. NextAuth session will get populated
-      // We will check and route user: if role is default STUDENT/LANDLORD,
-      // but they haven't explicitly set it or we route them to /role-selection to verify
-      router.push('/role-selection');
+      // Fetch current session to inspect user onboarding status
+      const sessionRes = await fetch('/api/auth/session');
+      const sessionData = await sessionRes.json();
+      const user = sessionData?.user;
+
+      if (user && user.joinedDate) {
+        router.push('/');
+      } else {
+        router.push('/role-selection');
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

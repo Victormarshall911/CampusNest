@@ -31,6 +31,10 @@ let activeConversationId: string | null = null;
 let currentUserId: string | null = null;
 let pollingInterval: any = null;
 
+// 🚨 TODO: HIGH-PRIORITY (PHASE 9)
+// This client-side polling mechanism is a temporary stopgap to simulate database-backed sync.
+// It polling `/api/conversations` every 1.2s will cause high database loads under concurrent traffic.
+// Remove this polling loop entirely in Phase 9 and replace it with push delivery (e.g. Socket.io, WebSockets, or SSE).
 const startPolling = () => {
   if (typeof window === 'undefined' || pollingInterval) return;
 
