@@ -118,6 +118,7 @@ export async function GET() {
           budget: p.budget || 0,
           title: p.title || '',
           description: p.text,
+          preferences: ['Clean', 'Quiet'], // Fallback tags
           likes: 3,
           comments: 0,
           createdAt: p.createdAt.toISOString(),

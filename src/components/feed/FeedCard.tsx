@@ -505,7 +505,7 @@ function RoommateCard({ post, index }: { post: RoommatePost; index: number }) {
 
         {/* Preference tags */}
         <div className="flex flex-wrap gap-1.5 mt-3">
-          {post.preferences.map((pref) => (
+          {(post.preferences || []).map((pref) => (
             <span
               key={pref}
               className="px-2.5 py-1 rounded-full text-xs font-medium bg-cn-purple/8 text-cn-purple border border-cn-purple/15"
