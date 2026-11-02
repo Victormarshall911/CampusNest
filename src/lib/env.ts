@@ -1,28 +1,63 @@
 import { z } from 'zod';
 
-const envSchema = z.object({
-  DATABASE_URL: z
-    .string()
-    .min(1, 'DATABASE_URL is required (Supabase transaction pooler on port 6543)'),
-  DIRECT_URL: z
-    .string()
-    .min(1, 'DIRECT_URL is required (Supabase session pooler on port 5432)'),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  ALLOW_SEED: z.string().optional(),
-  NEXTAUTH_SECRET: z.string().optional(),
-  NEXTAUTH_URL: z.string().optional(),
-  SUPABASE_URL: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-});
+const envSchema = z
+  .object({
+    DATABASE_URL: z
+      .string()
+      .min(1, 'DATABASE_URL is required'),
+    DIRECT_URL: z.string().optional(),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL').optional(),
+    SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY cannot be empty').optional(),
+    SEED_ALLOWED_PROJECT_REF: z.string().optional(),
+    ALLOW_SEED: z.string().optional(),
+    NEXTAUTH_SECRET: z.string().optional(),
+    NEXTAUTH_URL: z.string().optional(),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.NODE_ENV === 'production') {
+      try {
+        const url = new URL(data.DATABASE_URL);
+        const isPort6543 = url.port === '6543' || data.DATABASE_URL.includes(':6543');
+        const hasPgBouncer =
+          url.searchParams.get('pgbouncer') === 'true' || data.DATABASE_URL.includes('pgbouncer=true');
+
+        if (!isPort6543) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['DATABASE_URL'],
+            message: 'In production, DATABASE_URL must connect through the Supabase transaction pooler on port 6543',
+          });
+        }
+
+        if (!hasPgBouncer) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['DATABASE_URL'],
+            message: 'In production, DATABASE_URL must include ?pgbouncer=true parameter',
+          });
+        }
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['DATABASE_URL'],
+          message: 'DATABASE_URL must be a valid connection string',
+        });
+      }
+    }
+  });
 
 export type ValidatedEnv = z.infer<typeof envSchema>;
 
 export function validateEnv(): ValidatedEnv {
-  // In test environments, mock or bypass strict validation
   if (process.env.NODE_ENV === 'test') {
     return {
-      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://mock:mock@localhost:5432/mock',
-      DIRECT_URL: process.env.DIRECT_URL || 'postgresql://mock:mock@localhost:5432/mock',
+      DATABASE_URL: 'postgresql://mock:mock@localhost:5432/mock',
       NODE_ENV: 'test',
     };
   }
@@ -34,7 +69,8 @@ export function validateEnv(): ValidatedEnv {
       .map((issue) => `   - ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
 
-    const errorMessage = `\n[FATAL] Startup Environment Validation Failed:\n${errorDetails}\n\nPlease check your .env.local file against .env.example.\n`;
+    // Never log raw connection strings or secrets
+    const errorMessage = `\n[FATAL] Startup Environment Validation Failed:\n${errorDetails}\n\nPlease check your .env.local file against .env.example (connection strings/passwords are redacted).\n`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
@@ -42,5 +78,4 @@ export function validateEnv(): ValidatedEnv {
   return parsed.data;
 }
 
-// Eagerly validate environment variables on module evaluation
 export const env = validateEnv();

@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:rls": "tsx scripts/check-rls.ts",
-    "smoke:db": "tsx scripts/smoke-test.ts"
+    "db:status": "dotenv -e .env.local -v PRISMA_NO_DOTENV=1 -- prisma migrate status",
+    "db:deploy": "dotenv -e .env.local -v PRISMA_NO_DOTENV=1 -- prisma migrate deploy",
+    "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "check:rls": "dotenv -e .env.local -- tsx scripts/check-rls.ts",
+    "smoke:db": "dotenv -e .env.local -- tsx scripts/smoke-test.ts"
   },
   "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "seed": "dotenv -e .env.local -- tsx prisma/seed.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -36,6 +39,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^11.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "prisma": "^6.2.1",

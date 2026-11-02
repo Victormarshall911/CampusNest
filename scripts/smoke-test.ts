@@ -1,7 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import '@/lib/env';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 async function smokeTest() {
   console.log('🔌 Running smoke test against DATABASE_URL...');

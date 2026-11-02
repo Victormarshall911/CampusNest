@@ -1,7 +1,20 @@
-import { PrismaClient, Role, PostType, MessageStatus } from '@prisma/client';
+import { Role, PostType, MessageStatus } from '@prisma/client';
+import { prisma } from '../src/lib/prisma';
 import { universities, mockUsers, mockFeed } from '../src/data/mockData';
 
-const prisma = new PrismaClient();
+function extractProjectRef(databaseUrl?: string): string | null {
+  if (!databaseUrl) return null;
+  try {
+    const parsed = new URL(databaseUrl);
+    if (parsed.username && parsed.username.startsWith('postgres.')) {
+      return parsed.username.split('.')[1] || null;
+    }
+  } catch {
+    // fallback regex
+  }
+  const match = databaseUrl.match(/postgres\.([a-zA-Z0-9_-]+):/);
+  return match ? match[1] : null;
+}
 
 async function main() {
   if (process.env.NODE_ENV === 'production') {
@@ -11,10 +24,27 @@ async function main() {
 
   if (process.env.ALLOW_SEED !== 'true') {
     console.error('❌ SEED ABORTED: ALLOW_SEED=true is required to run the seed script.');
-    console.error('To seed your development database, run: ALLOW_SEED=true npx prisma db seed');
+    console.error('To seed your development database, run: ALLOW_SEED=true npm run db:seed');
     process.exit(1);
   }
 
+  const allowedProjectRef = process.env.SEED_ALLOWED_PROJECT_REF;
+  if (!allowedProjectRef) {
+    console.error('❌ SEED ABORTED: SEED_ALLOWED_PROJECT_REF is required in .env.local to prevent seeding the wrong database.');
+    process.exit(1);
+  }
+
+  const dbUrl = process.env.DATABASE_URL;
+  const dbProjectRef = extractProjectRef(dbUrl);
+
+  if (!dbProjectRef || dbProjectRef !== allowedProjectRef) {
+    console.error('❌ SEED ABORTED: Project ref in DATABASE_URL does not match SEED_ALLOWED_PROJECT_REF.');
+    console.error(`   Allowed ref: ${allowedProjectRef}`);
+    console.error(`   Detected ref: ${dbProjectRef ?? 'unknown'}`);
+    process.exit(1);
+  }
+
+  console.log(`✅ Seed guard verified for project ref: [${dbProjectRef}]`);
   console.log('Clearing database...');
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
