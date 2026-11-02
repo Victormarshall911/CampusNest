@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "SKIP_ENV_VALIDATION=true tsx tests/phase1-stabilize.test.ts",
     "db:status": "dotenv -e .env.local -v PRISMA_NO_DOTENV=1 -- prisma migrate status",
     "db:deploy": "dotenv -e .env.local -v PRISMA_NO_DOTENV=1 -- prisma migrate deploy",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
