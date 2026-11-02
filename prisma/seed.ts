@@ -4,6 +4,17 @@ import { universities, mockUsers, mockFeed } from '../src/data/mockData';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ SEED ABORTED: Cannot run database seed script in production environment!');
+    process.exit(1);
+  }
+
+  if (process.env.ALLOW_SEED !== 'true') {
+    console.error('❌ SEED ABORTED: ALLOW_SEED=true is required to run the seed script.');
+    console.error('To seed your development database, run: ALLOW_SEED=true npx prisma db seed');
+    process.exit(1);
+  }
+
   console.log('Clearing database...');
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();

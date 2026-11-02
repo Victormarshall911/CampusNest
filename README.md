@@ -34,28 +34,34 @@ Ensure you have the following installed:
 * PostgreSQL
 
 ### 2. Environment Configuration
-Create a `.env` or `.env.local` file in the root directory:
+Create a `.env.local` file in the root directory modeled on `.env.example`:
 
-```env
-DATABASE_URL="postgresql://victor@localhost:5433/campusnest?schema=public"
-NEXTAUTH_SECRET="your-development-nextauth-secret-here"
-NEXTAUTH_URL="http://localhost:3000"
+* `DATABASE_URL`: Supabase Transaction Pooler (port 6543) with `?pgbouncer=true&connection_limit=1`.
+* `DIRECT_URL`: Supabase Session Pooler (port 5432) on the pooler host (user `postgres.<project-ref>`).
+* `ALLOW_SEED`: Set to `"true"` only when seeding the development database.
 
-# Google OAuth credentials (if configured)
-GOOGLE_CLIENT_ID="google-client-id-placeholder"
-GOOGLE_CLIENT_SECRET="google-client-secret-placeholder"
-```
+### 3. Database Migration & Security (Row Level Security)
 
-### 3. Database Migration & Seeding
-CampusNest uses a custom seeding file to translate mock static data arrays into actual database relations.
+#### Security Mandate: Row Level Security (RLS)
+Every table in the `public` schema **MUST** have Row Level Security enabled with no policies (deny-by-default for the Supabase REST/PostgREST API). Prisma accesses the database as the `postgres` superuser/bypass-rls role and operates unimpeded.
 
-Initialize migrations and run the seed script:
+When creating any future Prisma migration that creates new tables:
+1. Include an `ALTER TABLE "<TableName>" ENABLE ROW LEVEL SECURITY;` statement in the migration.
+2. Verify all tables have RLS enabled using the CI guard script:
+   ```bash
+   npm run check:rls
+   ```
+
+#### Deploying Migrations
 ```bash
-# Apply Prisma migrations
-npx prisma migrate dev --name init
+# Deploy pending migrations
+npx prisma migrate deploy
 
-# Run database seeder
-npx prisma db seed
+# Check migration status
+npx prisma migrate status
+
+# Seed development database (guarded: requires ALLOW_SEED=true and NODE_ENV != production)
+ALLOW_SEED=true npx prisma db seed
 ```
 
 ### 4. Running the Development Server
