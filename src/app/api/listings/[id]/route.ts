@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
@@ -7,26 +9,40 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-    const listing = await prisma.listing.findUnique({
-      where: { id },
-      include: {
-        landlord: {
-          include: {
-            listings: true,
+    const [listing, isSavedRecord] = await Promise.all([
+      prisma.listing.findUnique({
+        where: { id },
+        include: {
+          landlord: {
+            include: {
+              listings: true,
+            },
+          },
+          university: true,
+          reviews: {
+            include: {
+              author: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
           },
         },
-        university: true,
-        reviews: {
-          include: {
-            author: true,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-      },
-    });
+      }),
+      userId
+        ? prisma.savedListing.findUnique({
+            where: {
+              userId_listingId: {
+                userId,
+                listingId: id,
+              },
+            },
+          })
+        : null,
+    ]);
 
     if (!listing) {
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
@@ -66,7 +82,7 @@ export async function GET(
       comments: listing.reviews.length,
       saves: 4,
       isLiked: false,
-      isSaved: false,
+      isSaved: Boolean(isSavedRecord),
       createdAt: listing.createdAt.toISOString(),
       distance: listing.distance,
       distanceKm: listing.distanceKm,

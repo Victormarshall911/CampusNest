@@ -6,6 +6,20 @@ import { prisma } from '@/lib/prisma';
 // GET all listings (mapped to ListingPost[])
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    const savedListingIds = userId
+      ? new Set(
+          (
+            await prisma.savedListing.findMany({
+              where: { userId },
+              select: { listingId: true },
+            })
+          ).map((s) => s.listingId)
+        )
+      : new Set<string>();
+
     const dbListings = await prisma.listing.findMany({
       include: {
         landlord: true,
@@ -55,7 +69,7 @@ export async function GET() {
       comments: l.reviews.length,
       saves: 3,
       isLiked: false,
-      isSaved: false,
+      isSaved: savedListingIds.has(l.id),
       createdAt: l.createdAt.toISOString(),
       distance: l.distance,
       distanceKm: l.distanceKm,

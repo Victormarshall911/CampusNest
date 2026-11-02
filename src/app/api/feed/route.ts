@@ -1,10 +1,27 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { FeedPost } from '@/data/mockData';
 
 export async function GET() {
   try {
-    // 1. Fetch listings
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    // 1. Fetch saved listings for current user if logged in
+    const savedListingIds = userId
+      ? new Set(
+          (
+            await prisma.savedListing.findMany({
+              where: { userId },
+              select: { listingId: true },
+            })
+          ).map((s) => s.listingId)
+        )
+      : new Set<string>();
+
+    // 2. Fetch listings
     const dbListings = await prisma.listing.findMany({
       include: {
         landlord: true,
@@ -69,7 +86,7 @@ export async function GET() {
       comments: l.reviews.length,
       saves: 5,
       isLiked: false,
-      isSaved: false,
+      isSaved: savedListingIds.has(l.id),
       createdAt: l.createdAt.toISOString(),
       distance: l.distance,
       distanceKm: l.distanceKm,

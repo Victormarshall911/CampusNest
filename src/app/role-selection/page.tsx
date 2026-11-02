@@ -76,6 +76,7 @@ export default function RoleSelectionPage() {
       await update({
         role,
         universityId: role === 'STUDENT' ? universityId : null,
+        joinedDate: data.joinedDate,
       });
 
       router.replace('/');

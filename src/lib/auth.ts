@@ -30,7 +30,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email and Verification Code are required');
         }
 
-        // Find active verification token in DB
+        // TEMPORARY: Existing console-OTP flow for development.
+        // This will be replaced by Supabase OTP wiring in Phase 2.
         const tokenRecord = await prisma.verificationToken.findUnique({
           where: {
             token: credentials.code,
@@ -42,28 +43,27 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (tokenRecord.expires < new Date()) {
-          // Clean up expired token
           await prisma.verificationToken.delete({ where: { token: credentials.code } }).catch(() => {});
           throw new Error('Verification code has expired');
         }
 
-        // Delete/expire the token after successful verification
+        // Delete the token after successful verification
         await prisma.verificationToken.delete({
           where: { token: credentials.code },
         }).catch(() => {});
 
-        // Find or create the user in the database
+        // Find or create user
         let user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
         if (!user) {
-          // Create new user (role will be set during role-selection step)
           user = await prisma.user.create({
             data: {
               email: credentials.email,
               name: credentials.email.split('@')[0],
               verified: false,
+              joinedDate: null,
             },
           });
         }
@@ -75,6 +75,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           verified: user.verified,
           universityId: user.universityId,
+          joinedDate: user.joinedDate,
+          avatarUrl: user.avatarUrl,
         };
       },
     }),
@@ -82,31 +84,32 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        const u = user as any;
-        token.id = u.id;
-        token.role = u.role;
-        token.verified = u.verified;
-        token.universityId = u.universityId;
-        token.avatarUrl = u.avatarUrl || u.avatar;
+        token.id = user.id;
+        token.role = user.role;
+        token.verified = user.verified;
+        token.universityId = user.universityId;
+        token.avatarUrl = user.avatarUrl;
+        token.joinedDate = user.joinedDate;
       }
-      
-      // Support dynamic session updates (for role selection page & avatar updates)
+
+      // Dynamic session updates (for role selection, joinedDate, and avatar changes)
       if (trigger === 'update' && session) {
         if (session.role) token.role = session.role;
-        if (session.universityId) token.universityId = session.universityId;
+        if (session.universityId !== undefined) token.universityId = session.universityId;
         if (session.avatarUrl) token.avatarUrl = session.avatarUrl;
+        if (session.joinedDate) token.joinedDate = session.joinedDate;
       }
 
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        const u = session.user as any;
-        u.id = token.id;
-        u.role = token.role;
-        u.verified = token.verified;
-        u.universityId = token.universityId;
-        u.avatarUrl = token.avatarUrl;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.verified = token.verified;
+        session.user.universityId = token.universityId;
+        session.user.avatarUrl = token.avatarUrl;
+        session.user.joinedDate = token.joinedDate;
       }
       return session;
     },

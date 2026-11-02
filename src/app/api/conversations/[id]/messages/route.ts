@@ -44,19 +44,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Auto-update received messages to READ
-    await prisma.message.updateMany({
-      where: {
-        conversationId,
-        senderId: { not: userId },
-        status: { not: MessageStatus.READ },
-      },
-      data: {
-        status: MessageStatus.READ,
-      },
-    });
-
-    // Fetch latest messages
+    // Fetch latest messages (read-only query)
     const dbMessages = await prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },

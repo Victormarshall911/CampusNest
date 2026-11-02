@@ -20,13 +20,12 @@ const tabs = [
 export default function BottomNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const currentUserId = (session?.user as any)?.id;
+  const currentUserId = session?.user?.id;
 
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
     if (status === 'loading' || !currentUserId) {
-      setUnreadCount(0);
       return;
     }
 

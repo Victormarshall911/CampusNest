@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, joinedDate });
   } catch (error: any) {
     console.error('Role Selection API Error:', error);
     return NextResponse.json({ error: 'Failed to update profile settings' }, { status: 500 });

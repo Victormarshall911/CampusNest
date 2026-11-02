@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// POST save listing
+// POST save listing (idempotent upsert)
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,35 +15,31 @@ export async function POST(
     }
 
     const { id: listingId } = await params;
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
 
-    // Check if already saved
-    const existing = await prisma.savedListing.findUnique({
+    // Idempotent upsert by compound key
+    await prisma.savedListing.upsert({
       where: {
         userId_listingId: {
           userId,
           listingId,
         },
       },
+      create: {
+        userId,
+        listingId,
+      },
+      update: {},
     });
 
-    if (!existing) {
-      await prisma.savedListing.create({
-        data: {
-          userId,
-          listingId,
-        },
-      });
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, saved: true });
   } catch (error: any) {
     console.error('Save Listing Error:', error);
     return NextResponse.json({ error: 'Failed to save listing' }, { status: 500 });
   }
 }
 
-// DELETE unsave listing
+// DELETE unsave listing (idempotent deleteMany)
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -55,18 +51,17 @@ export async function DELETE(
     }
 
     const { id: listingId } = await params;
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
 
-    await prisma.savedListing.delete({
+    // Idempotent delete (succeeds whether or not row exists)
+    await prisma.savedListing.deleteMany({
       where: {
-        userId_listingId: {
-          userId,
-          listingId,
-        },
+        userId,
+        listingId,
       },
-    }).catch(() => {});
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, saved: false });
   } catch (error: any) {
     console.error('Unsave Listing Error:', error);
     return NextResponse.json({ error: 'Failed to unsave listing' }, { status: 500 });

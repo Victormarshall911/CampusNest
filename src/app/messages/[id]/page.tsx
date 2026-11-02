@@ -143,7 +143,10 @@ function ChatRoomInner() {
       }
     });
 
-    return unsubscribe;
+    return () => {
+      mockChatStore.setActiveConversation(null);
+      unsubscribe();
+    };
   }, [conversation]);
 
   if (status === 'loading' || conversation === undefined) return <ChatSkeleton />;

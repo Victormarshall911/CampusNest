@@ -22,63 +22,162 @@ export interface Conversation {
   };
 }
 
+export interface ChatTransport {
+  fetchConversations(): Promise<Conversation[]>;
+  fetchMessages(conversationId: string): Promise<{ messages: Message[]; typingParticipantId: string | null }>;
+  sendMessage(conversationId: string, text: string): Promise<Message>;
+  markAsRead(conversationId: string): Promise<void>;
+  start(onSync: () => void): void;
+  stop(): void;
+}
+
+const POLLING_INTERVAL_MS = 30000; // 30s interim interval per Phase 1 requirements
+
+/**
+ * HTTP Polling transport implementation.
+ * Respects document.visibilityState to halt network requests when backgrounded.
+ * Will be swapped with Ably/Pusher push delivery in Phase 4.
+ */
+export class HttpPollingTransport implements ChatTransport {
+  private timer: NodeJS.Timeout | null = null;
+  private onSyncCallback: (() => void) | null = null;
+  private isStarted = false;
+
+  async fetchConversations(): Promise<Conversation[]> {
+    const res = await fetch('/api/conversations');
+    if (!res.ok) throw new Error('Failed to fetch conversations');
+    return res.json();
+  }
+
+  async fetchMessages(conversationId: string): Promise<{ messages: Message[]; typingParticipantId: string | null }> {
+    const res = await fetch(`/api/conversations/${conversationId}/messages`);
+    if (!res.ok) throw new Error('Failed to fetch messages');
+    return res.json();
+  }
+
+  async sendMessage(conversationId: string, text: string): Promise<Message> {
+    const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
+    const data = await res.json();
+    return data.message;
+  }
+
+  async markAsRead(conversationId: string): Promise<void> {
+    await fetch(`/api/conversations/${conversationId}/read`, {
+      method: 'POST',
+    }).catch(() => {});
+  }
+
+  private startTimer(): void {
+    this.stopTimer();
+    if (typeof window === 'undefined') return;
+
+    this.timer = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return; // Don't poll in background
+      }
+      this.onSyncCallback?.();
+    }, POLLING_INTERVAL_MS);
+  }
+
+  private stopTimer(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
+  start(onSync: () => void): void {
+    this.onSyncCallback = onSync;
+    if (this.isStarted || typeof window === 'undefined') return;
+    this.isStarted = true;
+
+    // Listen to visibility changes
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+
+    this.startTimer();
+  }
+
+  stop(): void {
+    this.stopTimer();
+    this.isStarted = false;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+  }
+
+  private handleVisibilityChange = (): void => {
+    if (typeof document === 'undefined') return;
+    if (document.visibilityState === 'visible') {
+      // Immediate sync upon returning to tab
+      this.onSyncCallback?.();
+      this.startTimer();
+    } else {
+      this.stopTimer();
+    }
+  };
+}
+
+// ── Store Implementation ───────────────────────────────────────────────────────
 type Subscriber = () => void;
 const subscribers = new Set<Subscriber>();
 
 let conversationsCache: Conversation[] = [];
-let messagesCacheMap: Record<string, Message[]> = {};
+const messagesCacheMap: Record<string, Message[]> = {};
 let activeConversationId: string | null = null;
 let currentUserId: string | null = null;
-let pollingInterval: any = null;
 
-// 🚨 TODO: HIGH-PRIORITY (PHASE 9)
-// This client-side polling mechanism is a temporary stopgap to simulate database-backed sync.
-// It polling `/api/conversations` every 1.2s will cause high database loads under concurrent traffic.
-// Remove this polling loop entirely in Phase 9 and replace it with push delivery (e.g. Socket.io, WebSockets, or SSE).
-const startPolling = () => {
-  if (typeof window === 'undefined' || pollingInterval) return;
+// Active transport instance (pluggable for Phase 4 push delivery)
+let transport: ChatTransport = new HttpPollingTransport();
 
-  const poll = async () => {
-    try {
-      // 1. Fetch conversations from Postgres API
-      const convRes = await fetch('/api/conversations');
-      if (convRes.ok) {
-        const rooms = await convRes.json();
-        conversationsCache = rooms;
+export function setChatTransport(customTransport: ChatTransport): void {
+  transport.stop();
+  transport = customTransport;
+  if (subscribers.size > 0) {
+    transport.start(sync);
+  }
+}
+
+const sync = async () => {
+  try {
+    const rooms = await transport.fetchConversations();
+    conversationsCache = rooms;
+
+    if (activeConversationId) {
+      const data = await transport.fetchMessages(activeConversationId);
+      messagesCacheMap[activeConversationId] = data.messages;
+
+      const matchingConv = conversationsCache.find((c) => c.id === activeConversationId);
+      if (matchingConv) {
+        matchingConv.typingParticipantId = data.typingParticipantId;
       }
-
-      // 2. Fetch messages for active conversation if one is open
-      if (activeConversationId) {
-        const msgRes = await fetch(`/api/conversations/${activeConversationId}/messages`);
-        if (msgRes.ok) {
-          const data = await msgRes.json();
-          messagesCacheMap[activeConversationId] = data.messages;
-          
-          // Sync transient typing indicator state
-          const matchingConv = conversationsCache.find((c) => c.id === activeConversationId);
-          if (matchingConv) {
-            matchingConv.typingParticipantId = data.typingParticipantId;
-          }
-        }
-      }
-
-      // 3. Notify all reactive subscribers
-      subscribers.forEach((cb) => cb());
-    } catch (err) {
-      console.error('Chat polling error:', err);
     }
-  };
 
-  poll();
-  pollingInterval = setInterval(poll, 1200);
+    subscribers.forEach((cb) => cb());
+  } catch (err) {
+    console.error('Chat sync error:', err);
+  }
 };
 
 export const mockChatStore = {
   subscribe(callback: Subscriber): () => void {
     subscribers.add(callback);
-    startPolling();
+    if (subscribers.size === 1) {
+      transport.start(sync);
+      // Trigger initial fetch immediately
+      sync();
+    }
     return () => {
       subscribers.delete(callback);
+      if (subscribers.size === 0) {
+        transport.stop();
+      }
     };
   },
 
@@ -89,15 +188,15 @@ export const mockChatStore = {
   setActiveConversation(id: string | null): void {
     activeConversationId = id;
     if (id) {
-      // Optimistically update status to read locally
+      // Optimistically update message statuses to read locally
       const messages = messagesCacheMap[id] || [];
       messages.forEach((m) => {
         if (m.senderId !== currentUserId) m.status = 'read';
       });
       this.notify();
-      
-      // Hit GET messages endpoint to trigger read receipts on database row
-      fetch(`/api/conversations/${id}/messages`).catch(() => {});
+
+      // Trigger explicit POST /read endpoint
+      transport.markAsRead(id);
     }
   },
 
@@ -112,7 +211,6 @@ export const mockChatStore = {
   getUnreadCount(userId: string): number {
     currentUserId = userId;
     let count = 0;
-    // Check unread status from latest messages in conversation lists
     conversationsCache.forEach((c) => {
       const msgs = messagesCacheMap[c.id];
       if (msgs && msgs.length > 0) {
@@ -127,8 +225,7 @@ export const mockChatStore = {
 
   async sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
     currentUserId = senderId;
-    
-    // 1. Optimistic local append for fast typing responsiveness
+
     const tempId = `temp-${Date.now()}`;
     const newMsg: Message = {
       id: tempId,
@@ -144,22 +241,12 @@ export const mockChatStore = {
     this.notify();
 
     try {
-      // 2. Persist message in PostgreSQL DB
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        // Swap optimistic message with official DB record mapping
-        const updatedMsgs = messagesCacheMap[conversationId] || [];
-        messagesCacheMap[conversationId] = updatedMsgs.map((m) =>
-          m.id === tempId ? data.message : m
-        );
-        this.notify();
-      }
+      const persistedMsg = await transport.sendMessage(conversationId, text);
+      const updatedMsgs = messagesCacheMap[conversationId] || [];
+      messagesCacheMap[conversationId] = updatedMsgs.map((m) =>
+        m.id === tempId ? persistedMsg : m
+      );
+      this.notify();
     } catch (error) {
       console.error('Failed to send message:', error);
     }

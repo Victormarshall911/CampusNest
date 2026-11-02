@@ -55,10 +55,16 @@ const envSchema = z
 export type ValidatedEnv = z.infer<typeof envSchema>;
 
 export function validateEnv(): ValidatedEnv {
-  if (process.env.NODE_ENV === 'test') {
+  // Tolerate missing DB during tests or when SKIP_ENV_VALIDATION=true in development.
+  // Never skip validation in production.
+  if (
+    process.env.NODE_ENV === 'test' ||
+    (process.env.NODE_ENV !== 'production' && process.env.SKIP_ENV_VALIDATION === 'true')
+  ) {
     return {
-      DATABASE_URL: 'postgresql://mock:mock@localhost:5432/mock',
-      NODE_ENV: 'test',
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://mock:mock@localhost:5432/mock',
+      DIRECT_URL: process.env.DIRECT_URL,
+      NODE_ENV: (process.env.NODE_ENV as any) || 'development',
     };
   }
 

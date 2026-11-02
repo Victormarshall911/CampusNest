@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Heart, MessageCircle, Share2, Bookmark, MapPin, Star, Users, BadgeCheck } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
@@ -32,8 +32,44 @@ export default function FeedCard({ post, index, compact = false }: FeedCardProps
 function ListingCard({ post, index, compact = false }: { post: ListingPost; index: number; compact?: boolean }) {
   const [liked, setLiked] = useState(post.isLiked);
   const [saved, setSaved] = useState(post.isSaved);
+  const [saving, setSaving] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [expanded, setExpanded] = useState(false);
+
+  // Sync initial state if post prop changes
+  useEffect(() => {
+    setSaved(post.isSaved);
+  }, [post.isSaved]);
+
+  const handleToggleSave = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (saving) return;
+
+    const previousSaved = saved;
+    const nextSaved = !previousSaved;
+
+    // Optimistic UI update
+    setSaved(nextSaved);
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/listings/${post.id}/save`, {
+        method: nextSaved ? 'POST' : 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update bookmark');
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
+      // Rollback on network failure
+      setSaved(previousSaved);
+    } finally {
+      setSaving(false);
+    }
+  }, [post.id, saved, saving]);
 
   const handleLike = useCallback(() => {
     setLiked((prev) => {
@@ -80,11 +116,7 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
             {/* Save button */}
             <motion.button
               whileTap={{ scale: 0.75 }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSaved(!saved);
-              }}
+              onClick={handleToggleSave}
               className="absolute top-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm z-10"
             >
               <Bookmark className={cn(
@@ -241,11 +273,7 @@ function ListingCard({ post, index, compact = false }: { post: ListingPost; inde
         {/* Save */}
         <motion.button
           whileTap={{ scale: 0.75 }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setSaved(!saved);
-          }}
+          onClick={handleToggleSave}
           className="p-2 rounded-full hover:bg-surface-secondary transition-colors z-10"
         >
           <motion.div
